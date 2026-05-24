@@ -1,0 +1,144 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<TargetFramework>net472</TargetFramework>
+	<OutputType>Library</OutputType>
+	<AssemblyName>Shade_Overkiz_IP</AssemblyName>
+	<RootNamespace>OverKiz.CrestronDriver</RootNamespace>
+	<LangVersion>latest</LangVersion>
+	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+	<!-- Suppress spurious ILLink.Substitutions.xml duplicate-resource warnings.
+		 ILLink trimming does not apply to net472; these warnings are noise from
+		 NuGet packages that each embed this resource. -->
+	<NoWarn>$(NoWarn);ILLink1005</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="UiDefinition.xml" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+	<PackageReference Include="OverkizClient" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<EmbeddedResource Include="Shade_Overkiz_IP.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+	<None Include="IncludeInPkg\UiDefinitions\UiDefinition.xml" />
+	<!-- XSD is for local VS validation only — excluded from packaging via the glob filter below -->
+	<None Include="IncludeInPkg\UiDefinitions\ExtensionsSchemaDefinition.xsd" />
+	<None Include="IncludeInPkg\Translations\en-US.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Crestron.DeviceDrivers.DevKit" Version="27.0.24" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="BumpDriverVersion.ps1" />
+    <None Include="Deploy.ps1" />
+    <None Include="OverKizCrestronDriver.csproj.user" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <ManifestUtilExe>C:\Applications (x86)\Crestron\Driver SDK\ManifestUtil\ManifestUtil.exe</ManifestUtilExe>
+  </PropertyGroup>
+
+  <!--
+    BumpDriverVersion: increments the 4th component of DriverVersion in the manifest
+    on every Debug build so Crestron Home always treats the package as new.
+  -->
+  <Target Name="BumpDriverVersion" BeforeTargets="CoreCompile">
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\BumpDriverVersion.ps1&quot; -ManifestPath &quot;$(MSBuildProjectDirectory)\Shade_Overkiz_IP.json&quot; -Configuration &quot;$(Configuration)&quot;" />
+  </Target>
+
+  <!--
+    MergeDependencies: ILRepack merges only our runtime deps into the driver DLL.
+    All Crestron/RAD/SimplSharp DLLs are passed only as /lib so they are never ingested.
+    The merged DLL is self-contained — no extra DLLs needed in the package.
+  -->
+  <Target Name="MergeDependencies" AfterTargets="Build">
+    <ItemGroup>
+      <!-- Assemblies to merge INTO the driver DLL -->
+      <MergeInputs Include="$(TargetPath)" />
+      <MergeInputs Include="$(TargetDir)OverKizApi.dll" />
+      <!-- Newtonsoft.Json is already loaded by Crestron Home - do not merge -->
+      <!-- <MergeInputs Include="$(TargetDir)Newtonsoft.Json.dll" /> -->
+      <MergeInputs Include="$(TargetDir)Polly.dll" />
+      <MergeInputs Include="$(TargetDir)Polly.Core.dll" />
+      <MergeInputs Include="$(TargetDir)Polly.Extensions.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Extensions.Logging.Abstractions.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Extensions.Options.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Extensions.Primitives.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Bcl.AsyncInterfaces.dll" />
+      <MergeInputs Include="$(TargetDir)System.Text.Json.dll" />
+      <MergeInputs Include="$(TargetDir)System.Text.Encodings.Web.dll" />
+      <MergeInputs Include="$(TargetDir)System.Memory.dll" />
+      <MergeInputs Include="$(TargetDir)System.Buffers.dll" />
+      <MergeInputs Include="$(TargetDir)System.Numerics.Vectors.dll" />
+      <MergeInputs Include="$(TargetDir)System.Runtime.CompilerServices.Unsafe.dll" />
+      <MergeInputs Include="$(TargetDir)System.IO.Pipelines.dll" />
+      <MergeInputs Include="$(TargetDir)System.Threading.Tasks.Extensions.dll" />
+      <MergeInputs Include="$(TargetDir)System.Net.Http.Json.dll" />
+      <MergeInputs Include="$(TargetDir)System.Diagnostics.DiagnosticSource.dll" />
+      <MergeInputs Include="$(TargetDir)log4net.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Bcl.HashCode.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Bcl.Memory.dll" />
+      <MergeInputs Include="$(TargetDir)Microsoft.Bcl.TimeProvider.dll" />
+      <MergeInputs Include="$(TargetDir)System.ComponentModel.Annotations.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.CallerInformationAttributes.G2.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.ConstantExpectedAttribute.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.DynamicallyAccessedMembersAttribute.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.ExperimentalAttribute.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.FeatureGuardAttribute.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.MetaPackage.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.NullableReferenceTypeAttributes.G1.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.NullableReferenceTypeAttributes.G2.dll" />
+      <MergeInputs Include="$(TargetDir)Hafner.Compatibility.NullableReferenceTypeAttributes.G3.dll" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(TargetDir)merge_inputs.txt" Lines="@(MergeInputs)" Overwrite="true" />
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\ILRepackMerge.ps1&quot; -TargetPath &quot;$(TargetPath)&quot; -InputListFile &quot;$(TargetDir)merge_inputs.txt&quot; -LibDir &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="true" />
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\PatchMergedAssembly.ps1&quot; -AssemblyPath &quot;$(TargetPath)&quot; -OutputPath &quot;$(TargetDir)patched\$(AssemblyName).dll&quot;" ContinueOnError="false" />
+  </Target>
+
+  <!--
+    PackageDriver: ManifestUtil creates the .pkg from the patched driver DLL.
+    No extra DLLs needed — everything is self-contained in Shade_Overkiz_IP.dll.
+  -->
+  <Target Name="PackageDriver" AfterTargets="MergeDependencies">
+    <!-- Clean stale IncludeInPkg from previous builds so excluded files (e.g. *.xsd) don't linger -->
+    <RemoveDir Directories="$(TargetDir)patched\IncludeInPkg" />
+    <!-- Copy IncludeInPkg (UiDefinitions + Translations) alongside patched DLL so ManifestUtil bundles it -->
+    <ItemGroup>
+      <IncludeInPkgFiles Include="$(MSBuildProjectDirectory)\IncludeInPkg\**\*"
+                         Exclude="$(MSBuildProjectDirectory)\IncludeInPkg\**\*.xsd" />
+    </ItemGroup>
+    <Copy SourceFiles="@(IncludeInPkgFiles)" DestinationFiles="@(IncludeInPkgFiles->'$(TargetDir)patched\IncludeInPkg\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Exec Command="&quot;$(ManifestUtilExe)&quot; --file &quot;$(TargetDir)patched\$(AssemblyName).dll&quot; --lib &quot;$(TargetDir.TrimEnd('\'))&quot; --output &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="true" IgnoreExitCode="true" />
+  </Target>
+
+  <!--
+    DeployDriver: uploads the built .pkg to the Crestron Home processor via FTP.
+    Enable by setting DeployAfterBuild=true in OverKizCrestronDriver.csproj.user
+    and filling in CrestronHomeIP / CrestronHomeFtpUser / CrestronHomeFtpPassword.
+  -->
+  <Target Name="DeployDriver" AfterTargets="PackageDriver" Condition="'$(DeployAfterBuild)' == 'true' And '$(Configuration)' == 'Debug'">
+    <PropertyGroup>
+      <PkgFile>$(TargetDir)$(AssemblyName).pkg</PkgFile>
+      <DeployScriptPath>$(MSBuildProjectDirectory)\Deploy.ps1</DeployScriptPath>
+    </PropertyGroup>
+
+    <Message Text="Deploying $(AssemblyName).pkg to $(CrestronHomeIP)..." Importance="High" />
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(DeployScriptPath)&quot; -PkgFile &quot;$(PkgFile)&quot; -ProcessorIP &quot;$(CrestronHomeIP)&quot; -User &quot;$(CrestronHomeFtpUser)&quot; -Password &quot;$(CrestronHomeSftpPassword)&quot; -Clean" ContinueOnError="true" />
+    <Message Text="Deploy complete. If the driver does not appear in Crestron Home, restart the processor from the UI." Importance="High" />
+  </Target>
+
+</Project>

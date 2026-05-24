@@ -1,0 +1,717 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema
+    xmlns:xs="http://www.w3.org/2001/XMLSchema">
+    <!-- Extensions Schema Definition Version 3 -->
+    <!-- definition of simple elements -->
+    <!-- Extension mechanism pattern -->
+    <xs:simpleType name="CustomDevicesLabelPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="\^[a-z0-9A-Z]+(\.[a-z0-9A-Z]+)?[\|]?([\{/$][a-z0-9A-Z]+(\.[a-z0-9A-Z]+)?[\}]?)?|\$[a-z0-9A-Z]+(\.[a-z0-9A-Z]+)?|\{[a-z0-9A-Z]+(\.[a-z0-9A-Z]+)?\}"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesValuePattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(\$[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)?|\{[a-zA-Z0-9\.:]+(\.[a-zA-Z0-9\.:]+)?\}|\{\})"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesActionPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(command)\:\w+([\w\./,]+)?"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesNavigationPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(show)\:+([a-z0-9A-Z\.]+)+|(showalert)\:+([a-z0-9A-Z\.]+)+|(back)"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesCommandPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(command)\:\w+([\w\./,]+)?"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesSubPropertyPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="\{\.\w+(\.\w+)*\}"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesNavigationParameterPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="((\{\.\})|(\{(((\.)\w)|(\w))+(\.\w)*\})|((\$\w+(\.\w+)*)))(((\,(\s)?)(\{(((\.)\w)|(\w))+(\.\w)*\}))*((\,(\s)?)(\$\w+(\.\w+)*))*((\,(\s)?)\{\.\})*)+"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesActionParameterPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="((\{(((\.)\w)|(\w))+(\.\w)*\})|((\$\w+(\.\w+)*)))(((\,(\s)?)(\{(((\.)\w)|(\w))+(\.\w)*\}))*((\,(\s)?)(\$\w+(\.\w+)*))*)+"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesLiteralPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="#(\w)+(\.\w+)*"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesBooleanPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(#true)|(#false)"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesColorLiteralPattern">
+        <xs:restriction base="xs:string">
+            <xs:pattern value="(#DarkGray)|(#MidGray)|(#Blue)|(#LightBlue)|(#Red)|(#Green)|(#Orange)|(#Purple)|(#Pink)|(#Yellow)"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesColorPattern">
+        <xs:union memberTypes="CustomDevicesValuePattern CustomDevicesColorLiteralPattern"/>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesFunctionPattern">
+        <xs:union memberTypes="CustomDevicesValuePattern CustomDevicesBooleanPattern"/>
+    </xs:simpleType>
+    <xs:simpleType name="CustomDevicesIconPattern">
+        <xs:union memberTypes="CustomDevicesValuePattern CustomDevicesLiteralPattern"/>
+    </xs:simpleType>
+    <!-- definition of attributes -->
+    <xs:attribute name="id">
+        <xs:simpleType>
+            <xs:restriction base="xs:string">
+                <xs:pattern value="[a-z0-9A-Z]+(\.[a-z0-9A-Z]+)?"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="inputparameters">
+        <xs:simpleType>
+            <xs:restriction base="xs:string">
+                <xs:pattern value="\$[a-z0-9A-Z]+(\.[a-z0-9A-Z]+)*((\,)*(\$\w+(\.\w*)*)*)*"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="label">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="status">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="action">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesActionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="navigation">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesNavigationPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="alticontext">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="icon">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesIconPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="secondaryicon">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesIconPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="value">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="secondarylabel">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="togglevalue">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttonlabel">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttonaction">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesActionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="statusicon">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesIconPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="slidervalue">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="valueformat">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="radialvalue">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="gaugefillcolor">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesColorPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="line1label">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="line2label">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="line3label">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="title">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="subtitle">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttondpadup">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesCommandPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttondpaddown">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesCommandPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttondpadleft">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesCommandPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttondpadright">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesCommandPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttondpadcenter">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesCommandPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="buttonpressaction">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesCommandPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="functionbutton1enabled">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesFunctionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="functionbutton2enabled">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesFunctionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="functionbutton1label">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="functionbutton2label">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="toplefticon">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesIconPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="setpointheat">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="setpointcool">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="setpointauto">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="heatmodeenabled">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesFunctionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="coolmodeenabled">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesFunctionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="automodeenabled">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesFunctionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="modeicon">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesIconPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="currenttemperature">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="currenttemperaturelabel">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="temperatureunits">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="errortext">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="obscureinput">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesBooleanPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="numericinputonly">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesBooleanPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="messagelabel">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="cancelbuttonlabel">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="proceedbuttonlabel">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesLabelPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="proceedaction">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesActionPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="items">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="visible">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="enabled">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="source">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesValuePattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="itemlabel">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesSubPropertyPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="navigationparameters">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesNavigationParameterPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="actionparameters">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesActionParameterPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="showinhomepage">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesBooleanPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="showinroompage">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesBooleanPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="isdefaultlayout">
+        <xs:simpleType>
+            <xs:restriction base="CustomDevicesBooleanPattern"/>
+        </xs:simpleType>
+    </xs:attribute>
+    <xs:attribute name="ver">
+        <xs:simpleType>
+            <xs:restriction base="xs:string">
+                <xs:pattern value="([0-9]+)+(\.[0-9]+)"/>
+            </xs:restriction>
+        </xs:simpleType>
+    </xs:attribute>
+    <!-- definition of complex elements -->
+    <!-- version definition-->
+    <xs:complexType name="version">
+        <xs:attribute ref="ver" use="required"/>
+    </xs:complexType>
+    <!-- tile definition -->
+    <xs:complexType name="tile">
+        <xs:attribute ref="icon" />
+        <xs:attribute ref="secondaryicon" />
+        <xs:attribute ref="alticontext" />
+        <xs:attribute ref="status" />
+        <xs:attribute ref="action" />
+        <xs:attribute ref="showinhomepage" use="required"/>
+        <xs:attribute ref="showinroompage" use="required"/>
+        <xs:attribute ref="navigation"/>
+    </xs:complexType>
+    <!-- Controls -->
+    <!--Subheader-->
+    <xs:complexType name="subheader">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="visible" />
+    </xs:complexType>
+    <!--Slider-->
+    <xs:complexType name="slider">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" />
+        <xs:attribute name="title" />
+        <xs:attribute ref="value" use="required"/>
+        <xs:attribute ref="action" />
+        <xs:attribute name="parameter" />
+        <xs:attribute name="minvalue" />
+        <xs:attribute name="maxvalue" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Segmented Slider-->
+    <xs:complexType name="segmentedslider">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="value" use="required"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Toggle-->
+    <xs:complexType name="toggle">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="secondarylabel" />
+        <xs:attribute ref="value" use="required"/>
+        <xs:attribute ref="navigation"/>
+        <xs:attribute ref="navigationparameters"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Status and Button-->
+    <xs:complexType name="statusandbutton">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="status" />
+        <xs:attribute ref="buttonlabel" use="required"/>
+        <xs:attribute ref="buttonaction" use="required"/>
+        <xs:attribute ref="navigation"/>
+        <xs:attribute ref="actionparameters"/>
+        <xs:attribute ref="navigationparameters"/>
+        <xs:attribute ref="statusicon" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Status and Navigation-->
+    <xs:complexType name="statusandnavigation">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="status" />
+        <xs:attribute ref="navigation"/>
+        <xs:attribute ref="navigationparameters"/>
+        <xs:attribute ref="statusicon" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Toggle Slider-->
+    <xs:complexType name="toggleslider">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="secondarylabel" />
+        <xs:attribute ref="togglevalue" use="required"/>
+        <xs:attribute ref="slidervalue" use="required"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Raise Lower with Text-->
+    <xs:complexType name="raiselowerwithtext">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="value" use="required"/>
+        <xs:attribute ref="valueformat" use="required"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Radial Gauge-->
+    <xs:complexType name="radialgauge">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="radialvalue" use="required"/>
+        <xs:attribute ref="line1label" use="required"/>
+        <xs:attribute ref="line2label" />
+        <xs:attribute ref="line3label" />
+        <xs:attribute ref="gaugefillcolor" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Button-->
+    <xs:complexType name="button">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" />
+        <xs:attribute ref="icon" />
+        <xs:attribute ref="action"/>
+        <xs:attribute ref="navigation"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+        <xs:attribute ref="actionparameters"/>
+        <xs:attribute ref="navigationparameters"/>
+    </xs:complexType>
+    <!--Selector Button-->
+    <xs:complexType name="selectorbutton">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="value" use="required"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--List Button-->
+    <xs:complexType name="listbutton">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="source" use="required"/>
+        <xs:attribute ref="itemlabel" use="required"/>
+        <xs:attribute ref="action"/>
+        <xs:attribute ref="navigation"/>
+        <xs:attribute ref="actionparameters" />
+        <xs:attribute ref="navigationparameters" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Dpad-->
+    <xs:complexType name="dpad">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="buttondpadup" />
+        <xs:attribute ref="buttondpaddown" />
+        <xs:attribute ref="buttondpadleft" />
+        <xs:attribute ref="buttondpadright" />
+        <xs:attribute ref="buttondpadcenter" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Keypad-->
+    <xs:complexType name="keypad">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="buttonpressaction" use="required" />
+        <xs:attribute ref="functionbutton1enabled" use="required" />
+        <xs:attribute ref="functionbutton2enabled" use="required" />
+        <xs:attribute ref="functionbutton1label" />
+        <xs:attribute ref="functionbutton2label" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Thermostat-->
+    <xs:complexType name="thermostat">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="toplefticon" />
+        <xs:attribute ref="title" use="required"/>
+        <xs:attribute ref="setpointheat" />
+        <xs:attribute ref="setpointcool" />
+        <xs:attribute ref="setpointauto" />
+        <xs:attribute ref="heatmodeenabled" use="required" />
+        <xs:attribute ref="coolmodeenabled" use="required" />
+        <xs:attribute ref="automodeenabled" use="required" />
+        <xs:attribute ref="modeicon" />
+        <xs:attribute ref="currenttemperature" />
+        <xs:attribute ref="currenttemperaturelabel" />
+        <xs:attribute ref="temperatureunits" use="required"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Text Entry-->
+    <xs:complexType name="textentry">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="value" use="required"/>
+        <xs:attribute ref="errortext" />
+        <xs:attribute ref="obscureinput" />
+        <xs:attribute ref="numericinputonly" />
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!--Text Display-->
+    <xs:complexType name="textdisplay">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="title" use="required"/>
+        <xs:attribute ref="line1label" />
+        <xs:attribute ref="line2label" />
+        <xs:attribute ref="line3label" />
+        <xs:attribute ref="visible" />
+    </xs:complexType>
+    <!--Text checkbox-->
+    <xs:complexType name="checkbox">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="label" use="required"/>
+        <xs:attribute ref="secondarylabel" />
+        <xs:attribute ref="value" use="required"/>
+        <xs:attribute ref="visible" />
+        <xs:attribute ref="enabled" />
+    </xs:complexType>
+    <!-- End Controls -->
+    <!-- Grouping Members -->
+    <xs:group name="allcontrols">
+        <xs:choice>
+            <xs:element name="slider" type="slider" />
+            <xs:element name="segmentedslider" type="segmentedslider" />
+            <xs:element name="toggle" type="toggle" />
+            <xs:element name="statusandbutton" type="statusandbutton" />
+            <xs:element name="statusandnavigation" type="statusandnavigation" />
+            <xs:element name="toggleslider" type="toggleslider" />
+            <xs:element name="raiselowerwithtext" type="raiselowerwithtext" />
+            <xs:element name="radialgauge" type="radialgauge" />
+            <xs:element name="buttongroup" type="buttongroup" />
+            <xs:element name="button" type="button" />
+            <xs:element name="selectorbutton" type="selectorbutton" />
+            <xs:element name="listbutton" type="listbutton" />
+            <xs:element name="dpad" type="dpad" />
+            <xs:element name="keypad" type="keypad" />
+            <xs:element name="thermostat" type="thermostat" />
+            <xs:element name="textentry" type="textentry" />
+            <xs:element name="textdisplay" type="textdisplay" />
+            <xs:element name="checkbox" type="checkbox" />
+        </xs:choice>
+    </xs:group>
+    <!--Button Group-->
+    <xs:complexType name="buttongroup">
+        <xs:choice minOccurs="1" maxOccurs="5">
+            <xs:element name="button" type="button" />
+            <xs:element name="selectorbutton" type="selectorbutton" />
+        </xs:choice>
+        <xs:attribute ref="visible" />
+    </xs:complexType>
+    <!-- Control Group -->
+    <xs:complexType name="controlgroup">
+        <xs:choice minOccurs="2" maxOccurs="unbounded">
+            <xs:group ref="allcontrols"/>
+        </xs:choice>
+        <xs:attribute ref="visible" />
+    </xs:complexType>
+    <!-- End Grouping Members -->
+    <!-- Layout Controls Collection -->
+    <xs:complexType name="controls">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:group ref="allcontrols"/>
+            <xs:element name="controlgroup" type="controlgroup" />
+            <xs:element name="subheader" type="subheader"/>
+        </xs:choice>
+    </xs:complexType>
+    <!-- layout definition -->
+    <xs:complexType name="layout">
+        <xs:sequence>
+            <xs:element name="controls" type="controls" />
+        </xs:sequence>
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="title" />
+        <xs:attribute ref="subtitle" />
+        <xs:attribute ref="inputparameters" />
+        <xs:attribute ref="isdefaultlayout" />
+    </xs:complexType>
+    <!-- Layout Collection -->
+    <xs:complexType name="layouts">
+        <xs:sequence minOccurs="1" maxOccurs="unbounded">
+            <xs:element name="layout" type="layout" />
+        </xs:sequence>
+    </xs:complexType>
+    <!-- Alert Definitions -->
+    <xs:complexType name="confirmation">
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="messagelabel" use="required" />
+        <xs:attribute ref="cancelbuttonlabel" use="required" />
+        <xs:attribute ref="proceedbuttonlabel" use="required" />
+        <xs:attribute ref="proceedaction" use="required" />
+        <xs:attribute ref="navigation"/>
+        <xs:attribute ref="inputparameters" />
+        <xs:attribute ref="actionparameters" />
+        <xs:attribute ref="navigationparameters" />
+    </xs:complexType>
+    <xs:complexType name="actionselector">
+        <xs:choice minOccurs="1" maxOccurs="unbounded">
+            <xs:element name="button" type="button" />
+        </xs:choice>
+        <xs:attribute ref="id" use="required" />
+        <xs:attribute ref="title" use="required" />
+        <xs:attribute ref="inputparameters" />
+    </xs:complexType>
+    <!-- End alert Definitions -->
+    <!-- Alerts Collection -->
+    <xs:complexType name="alerts">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <xs:element name="confirmation" type="confirmation" />
+            <xs:element name="actionselector" type="actionselector" />
+        </xs:choice>
+    </xs:complexType>
+    <!--UI Definition -->
+    <xs:element name="uidefinition">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="version" type="version" minOccurs="1"/>
+                <xs:element name="tile" type="tile" minOccurs="1"/>
+                <xs:element name="layouts" type="layouts"/>
+                <xs:element name="alerts" type="alerts"/>
+            </xs:sequence>
+        </xs:complexType>
+        <xs:unique name="uniqueid">
+            <xs:selector xpath=".//*"/>
+            <xs:field xpath="@id"/>
+        </xs:unique>
+    </xs:element>
+</xs:schema>
+
+
+
