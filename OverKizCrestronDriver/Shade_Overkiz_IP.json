@@ -16,8 +16,8 @@
             "Website": "",
             "PhoneNumber": ""
         },
-        "DriverVersion": "1.0.000.0066",
-        "VersionDate": "2026-05-24 12:27:35.221"
+        "DriverVersion": "1.0.000.0070",
+        "VersionDate": "2026-05-24 13:24:40.165"
     },
     "ConfigurationSteps": {
         "Items": [
@@ -45,7 +45,7 @@
                 "Persistent": true,
                 "ValueType": "String",
                 "DefaultValue": "SomfyEurope",
-                "AllowedValues": [ "SomfyEurope", "SomfyAmerica", "SomfyOceania", "AtlanticCozytouch", "SauterCozytouch", "ThermorCozytouch", "Brandt", "Flexom", "HexaomHexaconnect", "HiKumoAsia", "HiKumoEurope", "HiKumoOceania", "Nexity", "Rexel", "SimuLivein2", "Ubiwizz" ]
+                "AvailableValues": [ "SomfyEurope", "SomfyAmerica", "SomfyOceania", "AtlanticCozytouch", "SauterCozytouch", "ThermorCozytouch", "Brandt", "Flexom", "HexaomHexaconnect", "HiKumoAsia", "HiKumoEurope", "HiKumoOceania", "Nexity", "Rexel", "SimuLivein2", "Ubiwizz" ]
             },
             {
                 "Id": "GatewayIP",
