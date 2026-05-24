@@ -8,6 +8,23 @@ supporting both cloud and local LAN connections.
 
 ---
 
+## Driver Architecture
+
+This driver is implemented using the **Crestron Home SDK V2 Entity Model** — it derives directly
+from `ReflectedAttributeDriverEntity` and declares all properties, commands, and events via
+SDK attributes, with no dependency on any RAD base type (`ABaseDriver`, `ABasicVideoDisplay`,
+etc.) or command/state controller infrastructure (`StateController`, `PollingDeviceStateBase`, etc.).
+
+This makes it one of the very few — and quite possibly the **only publicly available** — Crestron
+Home extension driver built entirely on the V2 entity model without a RAD base class.
+Practical consequences of this architecture:
+
+- No inherited polling interfaces — event streaming and async timers are used directly instead.
+- No command/feedback string protocol — all device I/O goes through the `OverkizClient` REST API.
+- Full control over the entity lifecycle, connection management, and child device discovery.
+
+---
+
 ## Features
 
 - Cloud connection via Somfy OAuth 2.0 (and other Overkiz-based cloud servers)
