@@ -1,0 +1,84 @@
+{
+		"SchemaVersion": "2.0",
+		"GeneralInformation": {
+				"MinSdkVersion": "21.0000.0000",
+				"Guid": "082ff239-52cf-416a-baca-cea449a9b08f",
+				"DeviceType": "Platform",
+				"Manufacturer": "Overkiz",
+				"BaseModel": "Overkiz Gateway",
+				"OtherSupportedModels": [],
+				"SupportedSeries": [ "Somfy", "Overkiz", "Atlantic Cozytouch", "Thermor Cozytouch", "Sauter Cozytouch", "Hitachi Hi Kumo", "Nexity", "Rexel", "Flexom" ],
+				"DependencyGroup": "",
+				"Developer": {
+						"Company": "Neil Colvin",
+						"Contact": "Neil Colvin",
+						"Email": "",
+						"Website": "",
+						"PhoneNumber": ""
+				},
+				"DriverVersion": "2.0.000.0100",
+				"VersionDate": "2026-05-25 08:11:41.832"
+		},
+		"ConfigurationSteps": {
+				"Items": [
+						{
+								"Id": "CloudUsername",
+								"Title": "Cloud Username",
+								"Description": "Your Somfy / Overkiz account e-mail address (Cloud mode only).",
+								"Required": false,
+								"Persistent": true,
+								"ValueType": "String"
+						},
+						{
+								"Id": "CloudPassword",
+								"Title": "Cloud Password",
+								"Description": "Your Somfy / Overkiz account password (Cloud mode only).",
+								"Required": false,
+								"Persistent": true,
+								"ValueType": "String"
+						},
+						{
+								"Id": "CloudServer",
+								"Title": "Cloud Server",
+								"Description": "The Overkiz server your account belongs to (Cloud mode only).",
+								"Required": false,
+								"Persistent": true,
+								"ValueType": "String",
+								"DefaultValue": "SomfyEurope",
+								"AvailableValues": [ "SomfyEurope", "SomfyAmerica", "SomfyOceania", "AtlanticCozytouch", "SauterCozytouch", "ThermorCozytouch", "Brandt", "Flexom", "HexaomHexaconnect", "HiKumoAsia", "HiKumoEurope", "HiKumoOceania", "Nexity", "Rexel", "SimuLivein2", "Ubiwizz" ]
+						},
+						{
+								"Id": "GatewayIP",
+								"Title": "Gateway IP Address",
+								"Description": "LAN IP address or hostname of your Overkiz-compatible gateway (Local mode only).",
+								"Required": false,
+								"Persistent": true,
+								"ValueType": "String"
+						},
+						{
+								"Id": "LocalToken",
+										"Title": "Local API Token",
+										"Description": "Developer-mode bearer token generated from your Somfy cloud account (Local mode only).",
+										"Required": false,
+										"Persistent": true,
+										"ValueType": "String"
+								},
+								{
+										"Id": "RoomGroups",
+										"Title": "Room Groups",
+										"Description": "Optional. Group shades into rooms for simultaneous control. Format: RoomName=Shade1,Shade2; RoomName2=Shade3. Shade names must match exactly.",
+										"Required": false,
+										"Persistent": true,
+										"ValueType": "String"
+								}
+				],
+				"Steps": [
+						{
+								"StepId": "Connection",
+								"Items": [ "CloudUsername", "CloudPassword", "CloudServer", "GatewayIP", "LocalToken", "RoomGroups" ],
+								"NextStep": null
+						}
+				],
+				"FirstStep": "Connection"
+		}
+}

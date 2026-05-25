@@ -130,7 +130,9 @@
     Enable by setting DeployAfterBuild=true in OverKizCrestronDriver.csproj.user
     and filling in CrestronHomeIP / CrestronHomeFtpUser / CrestronHomeFtpPassword.
   -->
-  <Target Name="DeployDriver" AfterTargets="PackageDriver" Condition="'$(DeployAfterBuild)' == 'true' And '$(Configuration)' == 'Debug'">
+  <Target Name="DeployDriver" AfterTargets="PackageDriver" Condition="'$(DeployAfterBuild)' == 'true' And '$(Configuration)' == 'Debug'"
+          Inputs="$(TargetDir)$(AssemblyName).pkg"
+          Outputs="$(TargetDir)$(AssemblyName).deployed.stamp">
     <PropertyGroup>
       <PkgFile>$(TargetDir)$(AssemblyName).pkg</PkgFile>
       <DeployScriptPath>$(MSBuildProjectDirectory)\Deploy.ps1</DeployScriptPath>
@@ -138,6 +140,7 @@
 
     <Message Text="Deploying $(AssemblyName).pkg to $(CrestronHomeIP)..." Importance="High" />
     <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(DeployScriptPath)&quot; -PkgFile &quot;$(PkgFile)&quot; -ProcessorIP &quot;$(CrestronHomeIP)&quot; -User &quot;$(CrestronHomeFtpUser)&quot; -Password &quot;$(CrestronHomeSftpPassword)&quot; -Clean" ContinueOnError="true" />
+    <Touch Files="$(TargetDir)$(AssemblyName).deployed.stamp" AlwaysCreate="true" />
     <Message Text="Deploy complete. If the driver does not appear in Crestron Home, restart the processor from the UI." Importance="High" />
   </Target>
 

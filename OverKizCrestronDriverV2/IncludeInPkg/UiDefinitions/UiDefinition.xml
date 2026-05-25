@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<uidefinition xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+			  xsi:noNamespaceSchemaLocation="ExtensionsSchemaDefinition.xsd">
+  <version ver="2.0" />
+  <tile icon="#icShadesOpen" navigation="show:MainPage" showinhomepage="#false" showinroompage="#true"/>
+	<layouts>
+
+	<!-- ── Main shade control page ── -->
+	<layout id="MainPage" title="{deviceLabel}" isdefaultlayout="#true">
+	  <controls>
+		<!-- Position slider (two-way shades only) -->
+		<segmentedslider id="PositionSliderID"
+				label="^PositionLabel"
+				value="{openPercent}"
+				visible="{isTwoWay}" />
+		<!-- Primary action buttons -->
+		<button id="OpenBtnID"
+				label="^OpenLabel"
+				icon="#icShadesOpen"
+				action="command:open" />
+		<button id="StopBtnID"
+				label="^StopLabel"
+				icon="#icShadesSemiOpen"
+				action="command:stop" />
+		<button id="CloseBtnID"
+				label="^CloseLabel"
+				icon="#icShadesClosed"
+				action="command:close" />
+		<!-- My (favourite position) button — only shown when the device supports it -->
+		<button id="MyBtnID"
+				label="^MyLabel"
+				icon="#icShadesSemiOpen"
+				action="command:my"
+				visible="{hasMy}" />
+	  </controls>
+	</layout>
+
+  </layouts>
+  <alerts/>
+</uidefinition>
