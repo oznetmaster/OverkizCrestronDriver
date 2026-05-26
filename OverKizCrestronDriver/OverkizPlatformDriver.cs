@@ -193,6 +193,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private bool _connectInFlight;
 	private readonly object _connectLock = new ();
 
+	// ── Registration gate (signals ApplyConfigurationItems when UpdateSubControllers is done) ──
+
+	private TaskCompletionSource<bool> _registrationTcs;
+
 	// ── Event loop ────────────────────────────────────────────────────────
 
 	private CancellationTokenSource _eventCts;
@@ -263,19 +267,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			null,
 			null);
 
-		// ConfigurationItemsUpdated fires in the live service context after the framework
-		// processes configuration — on both release and beta firmware.  Use it to restore
-		// cached sub-controllers synchronously so they are visible before async discovery completes.
-		// NOTE: undocumented event found via reflection; guard against older runtime SDK versions
-		// that may not expose it.
-		try
-			{
-			ConfigurationController.ConfigurationItemsUpdated += OnConfigurationItemsUpdated;
-			}
-		catch (Exception ex)
-			{
-			Log ("ConfigurationItemsUpdated subscription failed (runtime SDK too old?): " + ex.Message);
-			}
+		// StatusChanged fires in the live service context when the driver reaches Running state.
+		// Use it to restore cached sub-controllers so the framework sees them in the correct context.
+		ConfigurationController.StatusChanged += OnConfigurationStatusChanged;
 		}
 
 	public override void Dispose ()
@@ -307,9 +301,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	// ── Private: configuration callback ──────────────────────────────────
 
-	private void OnConfigurationItemsUpdated (object sender, Crestron.DeviceDrivers.EntityModel.ConfigurationItemsUpdatedEventArgs e)
+	private void OnConfigurationStatusChanged (object sender, EventArgs e)
 		{
-		Log ("ConfigurationItemsUpdated: restoring from cache if empty");
+		if (ConfigurationController.GetStatus () != Crestron.DeviceDrivers.EntityModel.Data.DriverControllerStatus.Running)
+			return;
+		Log ("StatusChanged→Running: restoring from cache if empty");
 		RestoreFromCacheIfEmpty ();
 		}
 
@@ -412,6 +408,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private void Connect ()
 		{
 		CancellationTokenSource cts;
+		TaskCompletionSource<bool> tcs;
 		lock (_connectLock)
 			{
 			_connectCts?.Cancel ();
@@ -419,6 +416,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			_connectCts = new CancellationTokenSource ();
 			cts = _connectCts;
 			_connectInFlight = true;
+			_registrationTcs = new TaskCompletionSource<bool> ();
+			tcs = _registrationTcs;
 			}
 
 		_ = Task.Run (async () =>
@@ -442,6 +441,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					else
 						RegisterEntitiesWithFramework ();
 
+					// Signal ApplyConfigurationItems that registration is done.
+					tcs.TrySetResult (true);
+
 					cts.Token.ThrowIfCancellationRequested ();
 					lock (_entitiesLock)
 						{
@@ -453,10 +455,12 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					}
 				catch (OperationCanceledException)
 					{
+					tcs.TrySetCanceled ();
 					Log ("Connect superseded by newer request");
 					}
 				catch (Exception ex)
 					{
+					tcs.TrySetException (ex);
 					Log ("Connect failed: " + ex.ToString ());
 					}
 				finally
@@ -1957,9 +1961,13 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		lock (_entitiesLock)
 			isEmpty = _entities.Count == 0;
 		if (!isEmpty)
+			{
+			Log ("RestoreFromCache: skipped — entities already populated (" + _entities.Count + ")");
 			return;
+			}
 
 		List<CachedDevice> cached = LoadDeviceCache ();
+		Log ("RestoreFromCache: cache contains " + cached.Count + " device(s)");
 		if (cached.Count == 0)
 			return;
 
