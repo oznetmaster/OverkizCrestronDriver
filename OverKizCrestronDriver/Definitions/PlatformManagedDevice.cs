@@ -16,36 +16,27 @@ using Crestron.DeviceDrivers.SDK.EntityModel.Attributes;
 namespace OverKiz.CrestronDriver
 {
     [EntityDataType(Id = "platform:ManagedDevice")]
-    public class PlatformManagedDevice
-    {
-        public PlatformManagedDevice(
-            DeviceUxCategory uxCategory,
-            string name,
-            string manufacturer,
-            string model,
-            string serialNumber
-        )
-        {
-            UxCategory = uxCategory;
-            Name = name;
-            Manufacturer = manufacturer;
-            Model = model;
-            SerialNumber = serialNumber;
-        }
+    public class PlatformManagedDevice (
+		  DeviceUxCategory uxCategory,
+		  string name,
+		  string manufacturer,
+		  string model,
+		  string serialNumber
+		  )
+		{
+		[EntityProperty]
+		public DeviceUxCategory UxCategory { get; private set; } = uxCategory;
 
-        [EntityProperty]
-        public DeviceUxCategory UxCategory { get; private set; }
+		[EntityProperty]
+		public string Name { get; private set; } = name;
 
-        [EntityProperty]
-        public string Name { get; private set; }
+		[EntityProperty]
+		public string Manufacturer { get; private set; } = manufacturer;
 
-        [EntityProperty]
-        public string Manufacturer { get; private set; }
+		[EntityProperty]
+		public string Model { get; private set; } = model;
 
-        [EntityProperty]
-        public string Model { get; private set; }
-
-        [EntityProperty]
-        public string SerialNumber { get; private set; }
-    }
+		[EntityProperty]
+		public string SerialNumber { get; private set; } = serialNumber;
+		}
 }

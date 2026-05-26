@@ -43,12 +43,16 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		get;
 		}
 
+	private string _deviceLabel;
+
 	// Set once the framework has commissioned the entity
 	// a framework thread after commissioning completes).
 	private int _frameworkReady;
 
+	private readonly string _logControllerId;
+
 	private void Log (string msg) =>
-		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
+		_logger?.Log (_logControllerId, LogEntryLevel.Info, "[Shade:" + ControllerId + "] " + msg);
 
 	// ── IOverkizEntity ────────────────────────────────────────────────────
 
@@ -100,44 +104,20 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		IsMoving = moving;
 		}
 
-	/// <summary>Stored display-name override (from <c>ShadeDisplayNames</c> config); null means use <see cref="ApiLabel"/>.</summary>
-	private string _displayNameOverride;
-
 	/// <inheritdoc/>
-	public void UpdateLabel (string newApiLabel)
+	public void UpdateLabel (string newLabel)
 		{
-		var label = newApiLabel?.Trim () ?? string.Empty;
-		if (string.Equals (ApiLabel, label, StringComparison.Ordinal))
+		var label = newLabel?.Trim () ?? string.Empty;
+		if (string.Equals (_deviceLabel, label, StringComparison.Ordinal))
 			return;
 
-		ApiLabel = label;
-		var effectiveLabel = !string.IsNullOrEmpty (_displayNameOverride) ? _displayNameOverride : ApiLabel;
-		if (string.Equals (DeviceLabel, effectiveLabel, StringComparison.Ordinal))
-			return;
-
-		DeviceLabel = effectiveLabel;
+		_deviceLabel = label;
 
 		// Only notify if the framework has commissioned the entity.
-		if (Volatile.Read (ref _frameworkReady) != 0)
-			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
+		if (_frameworkReady != 0)
+			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (_deviceLabel));
 
-		Log ("UpdateLabel: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
-		}
-
-	/// <summary>Updates the display-name override and refreshes <see cref="DeviceLabel"/>.</summary>
-	public void UpdateDisplayName (string displayName)
-		{
-		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
-		var effectiveLabel = _displayNameOverride ?? ApiLabel;
-		if (string.Equals (DeviceLabel, effectiveLabel, StringComparison.Ordinal))
-			return;
-
-		DeviceLabel = effectiveLabel;
-
-		if (Volatile.Read (ref _frameworkReady) != 0)
-			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-
-		Log ("UpdateDisplayName: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
+		Log ("UpdateLabel: label updated to '" + _deviceLabel + "'");
 		}
 
 	/// <inheritdoc/>
@@ -146,15 +126,15 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		if (IsOneWay || states == null || states.Count == 0)
 			return;
 
-		var closure = OpenPercent == 0 ? 100 : 100 - OpenPercent; // preserve current if not in event
-		var isMoving = IsMoving;
-		var got = false;
+		int closure = OpenPercent == 0 ? 100 : 100 - OpenPercent; // preserve current if not in event
+		bool isMoving = IsMoving;
+		bool got = false;
 
 		foreach (EventState s in states)
 			{
 			if (string.Equals (s.Name, STATE_CLOSURE, StringComparison.OrdinalIgnoreCase) && s.Value != null)
 				{
-				if (int.TryParse (s.Value.ToString (), out var v))
+				if (int.TryParse (s.Value.ToString (), out int v))
 					{
 					closure = v;
 					got = true;
@@ -182,25 +162,12 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	public void StartPolling (OverkizWorkQueue queue)
 		{
 		Log ("StartPolling called; isOneWay=" + IsOneWay + " frameworkReady=" + _frameworkReady);
-		Volatile.Write (ref _frameworkReady, 1);
 		if (!IsOneWay)
 			{
 			_queue = queue;
 			StopPolling ();
 			_pollTimer = new Timer (PollCallback, null, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
 			}
-
-		// Push initial property values so the framework/touchscreen renders correctly.
-		if (_uiDefinition != null)
-			{
-			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
-			if (uiValue.HasValue)
-				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
-			}
-		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
-		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
-		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
 
 		SetOnline (true);
 		}
@@ -238,13 +205,10 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			}
 		} = 100;
 
-	/// <summary>The raw Overkiz API label for this device — used for room-group matching and identity. Never overridden by display-name config.</summary>
-	internal string ApiLabel { get; private set; }
-
-	/// <summary>Human-readable label of the device from the Overkiz API (the only name the driver ever knows).</summary>
+	/// <summary>Human-readable label of the device as named by the user in the Overkiz app.</summary>
 	[EntityProperty (Id = "deviceLabel", FriendlyName = "Device Label")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string DeviceLabel { get; private set; }
+	public string DeviceLabel => _deviceLabel;
 
 	/// <summary>
 	/// True when the shade supports position feedback (two-way).
@@ -308,9 +272,9 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 	public OverkizShadeEntity (
 		string controllerId,
+		string logControllerId,
 		string deviceUrl,
 		string deviceLabel,
-		string displayName,
 		bool isOneWay,
 		bool hasMyCommand,
 		Action<string> sendCommand,
@@ -320,10 +284,9 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		DriverImplementationResources resources)
 		: base (controllerId)
 		{
+		_logControllerId = logControllerId;
 		_deviceUrl = deviceUrl ?? throw new ArgumentNullException (nameof (deviceUrl));
-		ApiLabel            = deviceLabel ?? string.Empty;
-		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
-		DeviceLabel         = _displayNameOverride ?? ApiLabel;
+		_deviceLabel = deviceLabel ?? string.Empty;
 		IsOneWay = isOneWay;
 		HasMyCommand = hasMyCommand;
 		_sendCommand = sendCommand ?? throw new ArgumentNullException (nameof (sendCommand));
@@ -353,10 +316,52 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 		// Child is ready the moment it is constructed — it will go online when
 		// the platform's gateway connection is established.
+		// NotifyPropertyChanged is not reliable before the framework has commissioned
+		// the entity.  ValuesChanged fires on a framework-owned CSTP thread after
+		// commissioning, so we use it as the trigger to push the initial state.
 		ReadyIndicatorIsReady = true;
+		ValuesChanged += OnFirstValuesChanged;
 		}
 
 	// ── State update ──────────────────────────────────────────────────────
+
+	private void OnFirstValuesChanged (object sender, DevicePropertyChangeEventArgs args)
+		{
+		Log ("OnFirstValuesChanged fired; frameworkReady=" + _frameworkReady
+			+ " ready=" + ReadyIndicatorIsReady + " online=" + OnlineIndicatorIsOnline);
+
+		// Run only once: atomically flip 0 → 1.
+		if (Interlocked.CompareExchange (ref _frameworkReady, 1, 0) != 0)
+			{
+			Log ("OnFirstValuesChanged: already fired, skipping");
+			return;
+			}
+
+		ValuesChanged -= OnFirstValuesChanged;
+
+		// Now on a framework CSTP thread — safe to notify.
+		if (_uiDefinition != null)
+			{
+			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
+			Log ("OnFirstValuesChanged: uiValue.HasValue=" + uiValue.HasValue);
+			if (uiValue.HasValue)
+				{
+				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
+				Log ("OnFirstValuesChanged: UiDefinition NotifyPropertyChanged sent");
+				}
+			}
+		else
+			{
+			Log ("OnFirstValuesChanged: _uiDefinition is null — UI definition not loaded");
+			}
+
+		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
+		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (OnlineIndicatorIsOnline));
+		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (_deviceLabel));
+		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
+		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
+		Log ("OnFirstValuesChanged: ready+online+hasMy(" + HasMy + ")+isTwoWay(" + IsTwoWay + ") notifications sent");
+		}
 
 	internal void UpdateState (int closurePercent, bool isMoving)
 		{
@@ -375,8 +380,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		var deviceUrl = _deviceUrl;
 		IReadOnlyList<State> states = await client.GetDeviceStates (deviceUrl).ConfigureAwait (false);
 
-		var closure = 0;
-		var isMoving = false;
+		int closure = 0;
+		bool isMoving = false;
 
 		foreach (State state in states)
 			{
