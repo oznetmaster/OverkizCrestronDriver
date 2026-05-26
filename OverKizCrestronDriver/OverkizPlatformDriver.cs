@@ -47,6 +47,21 @@ internal sealed class RoomMemberConfig (string apiLabel, string displayName)
 	}
 
 /// <summary>
+/// Minimal per-device record persisted to disk so sub-controllers can be
+/// re-registered synchronously on the next service context before async
+/// discovery has a chance to complete.
+/// </summary>
+internal sealed class CachedDevice
+	{
+	public string Url           { get; set; }
+	public string Label         { get; set; }
+	public string UiClassString { get; set; }
+	public bool   IsOneWay      { get; set; }
+	public bool   HasMyCommand  { get; set; }
+	public int    UxCategory    { get; set; }
+	}
+
+/// <summary>
 /// SDK V2 Platform Driver root entity.
 /// Connects to an Overkiz-compatible gateway (cloud or local), discovers all
 /// controllable shade devices, and exposes them as dynamic child entities
@@ -345,6 +360,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
 					_roomGroups = ParseRoomGroups (_roomGroupsRaw);
 					_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
+					RestoreFromCacheIfEmpty ();
 					Connect ();
 					}
 				else if (displayChanged)
@@ -1075,6 +1091,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			ManagedDevices = managedDevicesCopy;
 			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 			Log ("Published " + controllersToAdd.Count + " shade(s)");
+
+			// Persist to disk so next service context can re-register synchronously.
+			lock (_entitiesLock)
+				SaveDeviceCache (_entities, ManagedDevices);
 			}
 
 		// Build room groupings unconditionally — a previously-known shade may now
@@ -1827,5 +1847,146 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		}
 
 	private void Log (string message) => _logger?.Log (_args.DriverId, LogEntryLevel.Info, message);
+
+	// ── Device cache (survives service-context replacement) ───────────────
+
+	private string DeviceCachePath =>
+		Path.Combine (_args.DriverDataDirectoryPath ?? "/tmp", "overkiz_device_cache.txt");
+
+	/// <summary>
+	/// Saves the current <see cref="_entities"/> set to disk.
+	/// Format: one line per device – pipe-separated fields.
+	/// </summary>
+	private void SaveDeviceCache (IEnumerable<KeyValuePair<string, IOverkizEntity>> entities,
+		IDictionary<string, PlatformManagedDevice> managedDevices)
+		{
+		try
+			{
+			var lines = new System.Text.StringBuilder ();
+			foreach (var kv in entities)
+				{
+				if (!(kv.Value is OverkizShadeEntity shade))
+					continue;
+				string modelStr = string.Empty;
+				int uxCat = (int)DeviceUxCategory.Shade;
+				if (managedDevices.TryGetValue (shade.ControllerId, out PlatformManagedDevice md))
+					{
+					modelStr = md.Model ?? string.Empty;
+					uxCat    = (int)md.UxCategory;
+					}
+				lines.AppendLine (string.Join ("|",
+					kv.Key,
+					shade.ApiLabel,
+					modelStr,
+					shade.IsOneWay ? "1" : "0",
+					shade.HasMyCommand ? "1" : "0",
+					uxCat.ToString ()));
+				}
+			File.WriteAllText (DeviceCachePath, lines.ToString ());
+			Log ("Device cache saved: " + DeviceCachePath);
+			}
+		catch (Exception ex)
+			{
+			Log ("Device cache save failed: " + ex.Message);
+			}
+		}
+
+	/// <summary>
+	/// Loads cached devices from disk and returns them, or an empty list on any error.
+	/// </summary>
+	private List<CachedDevice> LoadDeviceCache ()
+		{
+		var result = new List<CachedDevice> ();
+		try
+			{
+			if (!File.Exists (DeviceCachePath))
+				return result;
+			foreach (string line in File.ReadAllLines (DeviceCachePath))
+				{
+				if (string.IsNullOrWhiteSpace (line))
+					continue;
+				string[] parts = line.Split ('|');
+				if (parts.Length < 5)
+					continue;
+				result.Add (new CachedDevice
+					{
+					Url           = parts[0],
+					Label         = parts[1],
+					UiClassString = parts[2],
+					IsOneWay      = parts[3] == "1",
+					HasMyCommand  = parts[4] == "1",
+					UxCategory    = parts.Length > 5 && int.TryParse (parts[5], out int ux) ? ux : (int)DeviceUxCategory.Shade,
+					});
+				}
+			Log ("Device cache loaded: " + result.Count + " device(s)");
+			}
+		catch (Exception ex)
+			{
+			Log ("Device cache load failed: " + ex.Message);
+			}
+		return result;
+		}
+	/// <summary>
+	/// If <see cref="_entities"/> is empty, loads the device cache and synchronously
+	/// calls <see cref="UpdateSubControllers"/> so the framework sees the sub-controllers
+	/// in the current (live) service context before the async connect completes.
+	/// </summary>
+	private void RestoreFromCacheIfEmpty ()
+		{
+		bool isEmpty;
+		lock (_entitiesLock)
+			isEmpty = _entities.Count == 0;
+		if (!isEmpty)
+			return;
+
+		List<CachedDevice> cached = LoadDeviceCache ();
+		if (cached.Count == 0)
+			return;
+
+		var controllers = new List<ConfigurableDriverEntity> ();
+		var managedDevices = new Dictionary<string, PlatformManagedDevice> ();
+
+		lock (_entitiesLock)
+			{
+			foreach (CachedDevice cd in cached)
+				{
+				if (_entities.ContainsKey (cd.Url))
+					continue;
+
+				_ = _shadeDisplayNames.TryGetValue (cd.Label, out string displayName);
+				var entity = new OverkizShadeEntity (
+					controllerId:          MakeSafeControllerId (cd.Url),
+					deviceUrl:             cd.Url,
+					deviceLabel:           cd.Label,
+					displayName:           displayName,
+					isOneWay:              cd.IsOneWay,
+					hasMyCommand:          cd.HasMyCommand,
+					sendCommand:           cmd => SendDeviceCommand (cd.Url, cmd),
+					sendCommandWithParams: (cmd, p) => SendDeviceCommand (cd.Url, cmd, p),
+					driverDataDirectoryPath: _args.DriverDataDirectoryPath,
+					logger:                _logger,
+					resources:             _resources);
+
+				_entities[cd.Url] = entity;
+				controllers.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
+				managedDevices[entity.ControllerId] = new PlatformManagedDevice (
+					(DeviceUxCategory)cd.UxCategory,
+					cd.Label,
+					"Somfy / Overkiz",
+					cd.UiClassString,
+					null);
+				}
+			}
+
+		if (controllers.Count == 0)
+			return;
+
+		UpdateSubControllers (controllers, null);
+		ManagedDevices = managedDevices;
+		NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+		Log ("Restored " + controllers.Count + " shade(s) from cache");
+		}
+
 	}
+
 
