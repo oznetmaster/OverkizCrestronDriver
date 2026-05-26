@@ -22,6 +22,11 @@ Clause License Condition notice.
 
 License: MIT
 
+Exception: Installation of the Software on end-user systems as part of a broader
+system integration or commissioning service is expressly permitted, regardless of
+whether a fee is charged for that service, provided the Software itself is not
+sold or sublicensed as a standalone product.
+
 ---
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
