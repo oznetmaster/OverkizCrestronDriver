@@ -22,6 +22,7 @@ using OverKizApi.Models;
 using Crestron.DeviceDrivers.EntityModel.Logging;
 
 using OverkizCommand = OverKizApi.Models.Command;
+using System.IO;
 
 namespace OverKiz.CrestronDriver;
 
@@ -43,7 +44,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private string _roomGroupsRaw = string.Empty;
 
 	/// <summary>Parsed room groups: room label → list of shade labels (case-insensitive match).</summary>
-	private Dictionary<string, List<string>> _roomGroups = new ();
+	private Dictionary<string, List<string>> _roomGroups = [];
 
 	private bool IsLocalMode =>
 		!string.IsNullOrEmpty (_gatewayIp) && !string.IsNullOrEmpty (_localToken);
@@ -74,7 +75,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	// ── Child shade tracking ──────────────────────────────────────────────
 
 	/// <summary>Maps active execution IDs to the entity that triggered them.</summary>
-	private readonly Dictionary<string, IOverkizEntity> _pendingExecs = new ();
+	private readonly Dictionary<string, IOverkizEntity> _pendingExecs = [];
 	private readonly object _pendingExecsLock = new ();
 
 	/// <summary>
@@ -188,20 +189,20 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		// TEMP DIAG: write DriverId and Logger presence to file so we can see the actual key value
 		try
 			{
-			string diagDir = args.DriverDataDirectoryPath ?? "/tmp";
-			if (!System.IO.Directory.Exists (diagDir))
-				System.IO.Directory.CreateDirectory (diagDir);
-			string diagContent = $"DriverId={args.DriverId}\nControllerId={DriverController.RootControllerId}\nLogger={(args.Logger == null ? "NULL" : args.Logger.GetType ().FullName)}\nDriverDataDirectoryPath={args.DriverDataDirectoryPath}\n";
-			System.IO.File.WriteAllText (System.IO.Path.Combine (diagDir, "diag_logger.txt"), diagContent);
+			var diagDir = args.DriverDataDirectoryPath ?? "/tmp";
+			if (!Directory.Exists (diagDir))
+				_ = Directory.CreateDirectory (diagDir);
+			var diagContent = $"DriverId={args.DriverId}\nControllerId={DriverController.RootControllerId}\nLogger={(args.Logger == null ? "NULL" : args.Logger.GetType ().FullName)}\nDriverDataDirectoryPath={args.DriverDataDirectoryPath}\n";
+			File.WriteAllText (Path.Combine (diagDir, "diag_logger.txt"), diagContent);
 			// Also try /tmp as fallback
-			System.IO.File.WriteAllText ("/tmp/overkiz_diag.txt", diagContent);
+			File.WriteAllText ("/tmp/overkiz_diag.txt", diagContent);
 			}
 		catch (Exception diagEx)
 			{
 			// Write failure info somewhere we can read it
 			try
 				{
-				System.IO.File.WriteAllText ("/tmp/overkiz_diag_error.txt", diagEx.ToString ());
+				File.WriteAllText ("/tmp/overkiz_diag_error.txt", diagEx.ToString ());
 				}
 			catch { }
 			}
@@ -221,7 +222,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			ApplyConfigurationItems,
 			null,
 			null);
-		}
+			}
 
 	public override void Dispose ()
 		{
@@ -290,7 +291,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				// the async connect task has had a chance to complete (so an
 				// OnlineIndicatorIsOnline check would let both through).  Guard with
 				// an in-flight flag instead.
-				bool configChanged =
+				var configChanged =
 					_cloudUsername  != _appliedUsername  ||
 					_cloudPassword  != _appliedPassword  ||
 					_cloudServer    != _appliedServer    ||
@@ -531,15 +532,15 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 		_shadeToRoom[deviceUrl] = placeOid;
 
-		_roomToShades.AddOrUpdate (
+		_ = _roomToShades.AddOrUpdate (
 			placeOid,
 			_ => [deviceUrl],
 			(_, existing) =>
 				{
-				if (existing.Contains (deviceUrl, StringComparer.OrdinalIgnoreCase))
-					return existing;                         // already present — keep same snapshot
-				var next = new List<string> (existing) { deviceUrl };
-				return next;
+					if (existing.Contains (deviceUrl, StringComparer.OrdinalIgnoreCase))
+						return existing;                         // already present — keep same snapshot
+					var next = new List<string> (existing) { deviceUrl };
+					return next;
 				});
 		}
 
@@ -551,18 +552,18 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (deviceUrl == null)
 			return;
 
-		if (!_shadeToRoom.TryRemove (deviceUrl, out string placeOid))
+		if (!_shadeToRoom.TryRemove (deviceUrl, out var placeOid))
 			return;
 
-		_roomToShades.AddOrUpdate (
+		_ = _roomToShades.AddOrUpdate (
 			placeOid,
 			_ => [],
 			(_, existing) =>
 				{
-				var next = existing
-					.Where (u => !string.Equals (u, deviceUrl, StringComparison.OrdinalIgnoreCase))
-					.ToList ();
-				return next;
+					var next = existing
+						.Where (u => !string.Equals (u, deviceUrl, StringComparison.OrdinalIgnoreCase))
+						.ToList ();
+					return next;
 				});
 		}
 
@@ -578,14 +579,14 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	/// or <c>null</c> if not yet populated.
 	/// </summary>
 	internal string GetRoomLabel (string placeOid) =>
-		placeOid != null && _placeLabels.TryGetValue (placeOid, out string label) ? label : null;
+		placeOid != null && _placeLabels.TryGetValue (placeOid, out var label) ? label : null;
 
 	/// <summary>
 	/// Returns the placeOid the shade at <paramref name="deviceUrl"/> belongs
 	/// to, or <c>null</c> if not tracked.
 	/// </summary>
 	internal string GetShadeRoom (string deviceUrl) =>
-		deviceUrl != null && _shadeToRoom.TryGetValue (deviceUrl, out string oid) ? oid : null;
+		deviceUrl != null && _shadeToRoom.TryGetValue (deviceUrl, out var oid) ? oid : null;
 
 	// ── Room entity helpers ───────────────────────────────────────────────
 
@@ -603,7 +604,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		{
 		if (!_roomToShades.TryGetValue (placeOid, out List<string> shades))
 			return;
-		foreach (string url in shades)
+		foreach (var url in shades)
 			SendDeviceCommand (url, command, parameters);
 		}
 
@@ -621,11 +622,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (_roomEntities.ContainsKey (placeOid))
 			return (null, existing);
 
-		string label = GetRoomLabel (placeOid) ?? placeOid;
-		string cid   = RoomControllerId (placeOid);
+		var label = GetRoomLabel (placeOid) ?? placeOid;
+		var cid   = RoomControllerId (placeOid);
 
 		// If Crestron Home has already stored a user-defined name for this room, use it.
-		string roomLabel = ManagedDevices != null && ManagedDevices.TryGetValue (cid, out PlatformManagedDevice stored)
+		var roomLabel = ManagedDevices != null && ManagedDevices.TryGetValue (cid, out PlatformManagedDevice stored)
 			? stored.Name ?? label
 			: label;
 
@@ -633,11 +634,16 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 		Log ("CreateRoomEntityLocked: placeOid=" + placeOid + " label=" + roomLabel + " members=" + members.Count);
 
+		IReadOnlyList<string> configuredLabels = _roomGroups.TryGetValue (placeOid, out List<string> grp)
+			? grp
+			: (IReadOnlyList<string>)[.. members.Select (m => m.Label)];
+
 		var room = new OverkizRoomEntity (
-			controllerId:      cid,
-			roomLabel:         roomLabel,
-			members:           members,
-			openAll:           () => SendRoomCommand (placeOid, "open"),
+			controllerId:        cid,
+			roomLabel:           roomLabel,
+			allConfiguredLabels: configuredLabels,
+			members:             members,
+			openAll:             () => SendRoomCommand (placeOid, "open"),
 			closeAll:          () => SendRoomCommand (placeOid, "close"),
 			stopAll:           () => SendRoomCommand (placeOid, "stop"),
 			myAll:             () => SendRoomCommand (placeOid, "my"),
@@ -677,7 +683,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (!_roomToShades.TryGetValue (placeOid, out List<string> memberUrls))
 			return members;
 
-		foreach (string url in memberUrls)
+		foreach (var url in memberUrls)
 			{
 			if (_entities.TryGetValue (url, out IOverkizEntity e) && e is OverkizShadeEntity shade)
 				{
@@ -750,9 +756,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (!_roomEntities.TryGetValue (placeOid, out OverkizRoomEntity room))
 			return (null, existing);
 
-		_roomEntities.Remove (placeOid);
+		_ = _roomEntities.Remove (placeOid);
 		Dictionary<string, PlatformManagedDevice> copy = new Dictionary<string, PlatformManagedDevice> (existing);
-		copy.Remove (room.ControllerId);
+		_ = copy.Remove (room.ControllerId);
 		return (room, copy);
 		}
 
@@ -785,8 +791,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			return string.Empty;
 		// Replace all Unicode whitespace variants with a plain space, then trim.
 		var sb = new System.Text.StringBuilder (s.Length);
-		foreach (char c in s)
-			sb.Append (char.IsWhiteSpace (c) ? ' ' : c);
+		foreach (var c in s)
+			_ = sb.Append (char.IsWhiteSpace (c) ? ' ' : c);
 		// Collapse multiple spaces and trim ends.
 		return System.Text.RegularExpressions.Regex.Replace (sb.ToString (), @" {2,}", " ").Trim ();
 		}
@@ -802,19 +808,19 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (string.IsNullOrWhiteSpace (raw))
 			return result;
 
-		foreach (string group in raw.Split (';'))
+		foreach (var group in raw.Split (';'))
 			{
-			int eq = group.IndexOf ('=');
+			var eq = group.IndexOf ('=');
 			if (eq <= 0)
 				continue;
 
-			string roomName = NormalizeLabel (group.Substring (0, eq));
+			var roomName = NormalizeLabel (group[..eq]);
 			if (string.IsNullOrEmpty (roomName))
 				continue;
 
-			var members = group.Substring (eq + 1)
+			var members = group[(eq + 1)..]
 				.Split (',')
-				.Select (s => NormalizeLabel (s))
+				.Select (NormalizeLabel)
 				.Where (s => s.Length > 0)
 				.ToList ();
 
@@ -935,9 +941,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					{
 					foreach (KeyValuePair<string, List<string>> group in _roomGroups)
 							{
-							string roomName = group.Key;
+							var roomName = group.Key;
 							var matchedUrls = group.Value
-								.Where (lbl => labelToUrl.ContainsKey (lbl))
+								.Where (labelToUrl.ContainsKey)
 								.Select (lbl => labelToUrl[lbl])
 								.ToList ();
 
@@ -948,10 +954,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 								}
 
 							_placeLabels[roomName] = roomName;
-							foreach (string shadeUrl in matchedUrls)
+							foreach (var shadeUrl in matchedUrls)
 								TrackShadeInRoom (shadeUrl, roomName);
 
-							Log ("RoomGroup '" + roomName + "': matched " + matchedUrls.Count + " shade(s): " + string.Join (", ", group.Value.Where (lbl => labelToUrl.ContainsKey (lbl))));
+							Log ("RoomGroup '" + roomName + "': matched " + matchedUrls.Count + " shade(s): " + string.Join (", ", group.Value.Where (labelToUrl.ContainsKey)));
 							}
 					}
 
@@ -1158,7 +1164,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 		// The API appends "Event" to every event name (e.g. "DeviceUpdatedEvent").
 		// Strip the suffix before parsing so the enum match is name-stable.
-		string rawName = ev.Name.EndsWith ("Event", StringComparison.OrdinalIgnoreCase)
+		var rawName = ev.Name.EndsWith ("Event", StringComparison.OrdinalIgnoreCase)
 			? ev.Name[..^5]
 			: ev.Name;
 
@@ -1219,7 +1225,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (ev.ExecId == null || ev.NewState == null)
 			return;
 
-		bool terminal = ev.NewState is OverKizApi.Enums.ExecutionState.Completed
+		var terminal = ev.NewState is OverKizApi.Enums.ExecutionState.Completed
 			or OverKizApi.Enums.ExecutionState.Failed
 			or OverKizApi.Enums.ExecutionState.Cancelled;
 
@@ -1243,7 +1249,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			return;
 
 		// SubType 0 = unavailable, 1 = available (Overkiz convention)
-		bool available = ev.SubType == 1;
+		var available = ev.SubType == 1;
 
 		IOverkizEntity entity;
 		lock (_entitiesLock)
@@ -1294,7 +1300,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				return;
 				}
 
-			string label = NormalizeLabel (device.Label ?? ev.DeviceUrl);
+			var label = NormalizeLabel (device.Label ?? ev.DeviceUrl);
 			Log ("Event: DeviceCreated – label=" + label + " url=" + ev.DeviceUrl);
 			PlatformManagedDevice managedDevice = new PlatformManagedDevice (
 				entity.UxCategory,
@@ -1314,7 +1320,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					_entities[ev.DeviceUrl] = entity;
 
 					// Determine if this shade belongs to any configured room group by label.
-					string roomName = FindRoomGroupForLabel (label);
+					var roomName = FindRoomGroupForLabel (label);
 					if (roomName != null)
 						TrackShadeInRoom (ev.DeviceUrl, roomName);
 
@@ -1324,11 +1330,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 						: [];
 					managedDevicesCopy[entity.ControllerId] = managedDevice;
 
-					string effectiveRoom = roomName;
+					var effectiveRoom = roomName;
 					// Update or create the room aggregate for the new member.
 						if (effectiveRoom != null && _roomToShades.TryGetValue (effectiveRoom, out List<string> roomShades) && roomShades.Count >= 1)
 							{
-							bool updated = RebuildRoomMembersLocked (effectiveRoom, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
+							var updated = RebuildRoomMembersLocked (effectiveRoom, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
 							if (roomEntity != null)
 								{
 								newRoomEntity = updated ? null : roomEntity;
@@ -1385,13 +1391,13 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			OverkizRoomEntity newlyCreatedRoom = null;
 			if (placeOid != null)
 				{
-				int remaining = GetRoomShadeCount (placeOid);
+				var remaining = GetRoomShadeCount (placeOid);
 				lock (_entitiesLock)
 					{
 					if (remaining >= 1)
 						{
 						// Update members in place; room entity identity is preserved.
-						bool updated = RebuildRoomMembersLocked (placeOid, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
+						var updated = RebuildRoomMembersLocked (placeOid, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
 						if (!updated && roomEntity != null)
 							newlyCreatedRoom = roomEntity;
 						Log ("Event: DeviceDeleted – room " + (updated ? "updated" : "created") + " for '" + placeOid + "' (" + remaining + " shade(s) remaining)");
@@ -1412,11 +1418,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			// Cancel any in-flight executions for this entity
 			lock (_pendingExecsLock)
 				{
-				foreach (string execId in _pendingExecs.Keys
+				foreach (var execId in _pendingExecs.Keys
 					.Where (k => ReferenceEquals (_pendingExecs[k], entity))
 					.ToList ())
 					{
-					_pendingExecs.Remove (execId);
+				_ = _pendingExecs.Remove (execId);
 					}
 				}
 
@@ -1427,7 +1433,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			var toRemove = new List<string> { entity.ControllerId };
 			if (destroyedRoom != null)
 				toRemove.Add (destroyedRoom.ControllerId);
-			UpdateSubControllers (null, toRemove.ToArray ());
+			UpdateSubControllers (null, [.. toRemove]);
 
 			// Register a newly created room (only happens if it didn't exist before deletion).
 			if (newlyCreatedRoom != null)
@@ -1450,7 +1456,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (ev.DeviceUrl == null || ev.Label == null)
 			return;
 
-		string newLabel = NormalizeLabel (ev.Label);
+		var newLabel = NormalizeLabel (ev.Label);
 
 		IOverkizEntity entity;
 		lock (_entitiesLock)
@@ -1463,10 +1469,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			return;
 
 		// Determine old and new room membership based on configured groups.
-		string oldRoom = GetShadeRoom (ev.DeviceUrl);          // room tracked under old label
-		string newRoom = FindRoomGroupForLabel (newLabel);     // room the new label maps to
+		var oldRoom = GetShadeRoom (ev.DeviceUrl);          // room tracked under old label
+		var newRoom = FindRoomGroupForLabel (newLabel);     // room the new label maps to
 
-		bool roomChanged = !string.Equals (oldRoom, newRoom, StringComparison.OrdinalIgnoreCase);
+		var roomChanged = !string.Equals (oldRoom, newRoom, StringComparison.OrdinalIgnoreCase);
 
 		// Update the shade entity's label first so CreateRoomEntityLocked sees the new label.
 		entity.UpdateLabel (newLabel);
@@ -1485,12 +1491,12 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			if (oldRoom != null)
 				{
 				UntrackShadeFromRoom (ev.DeviceUrl);
-				int remaining = GetRoomShadeCount (oldRoom);
+				var remaining = GetRoomShadeCount (oldRoom);
 				lock (_entitiesLock)
 					{
 					if (remaining >= 1)
 						{
-						RebuildRoomMembersLocked (oldRoom, ref managedDevicesCopy, out _);
+						_ = RebuildRoomMembersLocked (oldRoom, ref managedDevicesCopy, out _);
 						}
 					else
 						{
@@ -1511,7 +1517,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				TrackShadeInRoom (ev.DeviceUrl, newRoom);
 				lock (_entitiesLock)
 					{
-					bool updated = RebuildRoomMembersLocked (newRoom, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
+					var updated = RebuildRoomMembersLocked (newRoom, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
 					if (!updated && roomEntity != null)
 						newRoomCreated = roomEntity;
 					}
@@ -1536,7 +1542,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			{
 			// Label changed but stays in the same room — update member label in place.
 			lock (_entitiesLock)
-				RebuildRoomMembersLocked (oldRoom, ref managedDevicesCopy, out _);
+				_ = RebuildRoomMembersLocked (oldRoom, ref managedDevicesCopy, out _);
 
 			Log ("Event: DeviceUpdated – relabelled " + entity.ControllerId + " to '" + newLabel + "' (room member label refreshed)");
 			}
@@ -1574,7 +1580,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	/// </summary>
 	private IOverkizEntity TryCreateEntity (string url, Device device)
 		{
-		bool isShade = (device.UiClass.HasValue && _shadeClasses.Contains (device.UiClass.Value))
+		var isShade = (device.UiClass.HasValue && _shadeClasses.Contains (device.UiClass.Value))
 			|| url.StartsWith ("rts://", StringComparison.OrdinalIgnoreCase);
 
 		if (isShade)
@@ -1621,7 +1627,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 							Parameters = parameters ?? []
 							}
 						};
-					string execId = await client.ExecuteDeviceAction (deviceUrl, cmds).ConfigureAwait (false);
+					var execId = await client.ExecuteDeviceAction (deviceUrl, cmds).ConfigureAwait (false);
 
 					// Track the execution so we can set isMoving=false when it completes.
 					IOverkizEntity entity;
@@ -1650,7 +1656,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private static string MakeSafeControllerId (string url)
 		{
 		var chars = new System.Text.StringBuilder (url.Length);
-		foreach (char c in url)
+		foreach (var c in url)
 			_ = chars.Append (char.IsLetterOrDigit (c) ? c : '_');
 		return chars.ToString ();
 		}

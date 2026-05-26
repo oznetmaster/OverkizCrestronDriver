@@ -122,15 +122,15 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		if (IsOneWay || states == null || states.Count == 0)
 			return;
 
-		int closure = OpenPercent == 0 ? 100 : 100 - OpenPercent; // preserve current if not in event
-		bool isMoving = IsMoving;
-		bool got = false;
+		var closure = OpenPercent == 0 ? 100 : 100 - OpenPercent; // preserve current if not in event
+		var isMoving = IsMoving;
+		var got = false;
 
 		foreach (EventState s in states)
 			{
 			if (string.Equals (s.Name, STATE_CLOSURE, StringComparison.OrdinalIgnoreCase) && s.Value != null)
 				{
-				if (int.TryParse (s.Value.ToString (), out int v))
+				if (int.TryParse (s.Value.ToString (), out var v))
 					{
 					closure = v;
 					got = true;
@@ -158,6 +158,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	public void StartPolling (OverkizWorkQueue queue)
 		{
 		Log ("StartPolling called; isOneWay=" + IsOneWay + " frameworkReady=" + _frameworkReady);
+		Interlocked.Exchange (ref _frameworkReady, 1);
 		if (!IsOneWay)
 			{
 			_queue = queue;
@@ -201,7 +202,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			}
 		} = 100;
 
-	/// <summary>Human-readable label of the device as named by the user in the Overkiz app.</summary>
+	/// <summary>Human-readable label of the device from the Overkiz API (the only name the driver ever knows).</summary>
 	[EntityProperty (Id = "deviceLabel", FriendlyName = "Device Label")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
 	public string DeviceLabel { get; private set; }
@@ -310,52 +311,10 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 		// Child is ready the moment it is constructed — it will go online when
 		// the platform's gateway connection is established.
-		// NotifyPropertyChanged is not reliable before the framework has commissioned
-		// the entity.  ValuesChanged fires on a framework-owned CSTP thread after
-		// commissioning, so we use it as the trigger to push the initial state.
 		ReadyIndicatorIsReady = true;
-		ValuesChanged += OnFirstValuesChanged;
 		}
 
 	// ── State update ──────────────────────────────────────────────────────
-
-	private void OnFirstValuesChanged (object sender, DevicePropertyChangeEventArgs args)
-		{
-		Log ("OnFirstValuesChanged fired; frameworkReady=" + _frameworkReady
-			+ " ready=" + ReadyIndicatorIsReady + " online=" + OnlineIndicatorIsOnline);
-
-		// Run only once: atomically flip 0 → 1.
-		if (Interlocked.CompareExchange (ref _frameworkReady, 1, 0) != 0)
-			{
-			Log ("OnFirstValuesChanged: already fired, skipping");
-			return;
-			}
-
-		ValuesChanged -= OnFirstValuesChanged;
-
-		// Now on a framework CSTP thread — safe to notify.
-		if (_uiDefinition != null)
-			{
-			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
-			Log ("OnFirstValuesChanged: uiValue.HasValue=" + uiValue.HasValue);
-			if (uiValue.HasValue)
-				{
-				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
-				Log ("OnFirstValuesChanged: UiDefinition NotifyPropertyChanged sent");
-				}
-			}
-		else
-			{
-			Log ("OnFirstValuesChanged: _uiDefinition is null — UI definition not loaded");
-			}
-
-		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
-		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (OnlineIndicatorIsOnline));
-		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
-		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
-		Log ("OnFirstValuesChanged: ready+online+hasMy(" + HasMy + ")+isTwoWay(" + IsTwoWay + ") notifications sent");
-		}
 
 	internal void UpdateState (int closurePercent, bool isMoving)
 		{
@@ -374,8 +333,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		var deviceUrl = _deviceUrl;
 		IReadOnlyList<State> states = await client.GetDeviceStates (deviceUrl).ConfigureAwait (false);
 
-		int closure = 0;
-		bool isMoving = false;
+		var closure = 0;
+		var isMoving = false;
 
 		foreach (State state in states)
 			{

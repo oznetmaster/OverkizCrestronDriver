@@ -21,6 +21,7 @@
 
   <ItemGroup>
 	<None Include="IncludeInPkg\UiDefinitions\UiDefinition.xml" />
+	<None Include="IncludeInPkg\room\uidefinitions\UiDefinition.xml" />
 	<None Include="IncludeInPkg\Translations\en-US.json" />
 	<None Include="BumpDriverVersion.ps1" />
 	<None Include="Deploy.ps1" />

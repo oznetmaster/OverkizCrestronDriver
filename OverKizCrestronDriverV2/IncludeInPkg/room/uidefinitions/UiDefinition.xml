@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<uidefinition xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+			  xsi:noNamespaceSchemaLocation="ExtensionsSchemaDefinition.xsd">
+  <version ver="2.0" />
+  <tile icon="#icShadesOpen" navigation="show:MainPage" showinhomepage="#false" showinroompage="#true" />
+  <layouts>
+
+	<layout id="MainPage" title="{deviceLabel}" isdefaultlayout="#true">
+	  <controls>
+
+		<!-- Room-level aggregate controls — always visible -->
+		<subheader id="RoomHdr" label="^AllLabel" />
+		<buttongroup>
+		  <button id="RoomOpen"  icon="#icShadesOpen"     action="command:open" />
+		  <button id="RoomStop"  icon="#icShadesSemiOpen" action="command:stop" />
+		  <button id="RoomClose" icon="#icShadesClosed"   action="command:close" />
+		  <button id="RoomMy"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my" visible="{hasMy}" />
+		</buttongroup>
+
+		<!-- Slot 0 -->
+		<subheader id="Shade0Hdr" label="{shadeLabel_0}" visible="{visible_0}" />
+		<controlgroup visible="{visible_0}">
+		  <buttongroup>
+			<button id="Shade0Open"  icon="#icShadesOpen"     action="command:open_0" />
+			<button id="Shade0Stop"  icon="#icShadesSemiOpen" action="command:stop_0" />
+			<button id="Shade0Close" icon="#icShadesClosed"   action="command:close_0" />
+			<button id="Shade0My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_0" visible="{visible_my_0}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade0Slider" label="^PositionLabel" value="{openPercent_0}" visible="{visible_slider_0}" />
+		</controlgroup>
+
+		<!-- Slot 1 -->
+		<subheader id="Shade1Hdr" label="{shadeLabel_1}" visible="{visible_1}" />
+		<controlgroup visible="{visible_1}">
+		  <buttongroup>
+			<button id="Shade1Open"  icon="#icShadesOpen"     action="command:open_1" />
+			<button id="Shade1Stop"  icon="#icShadesSemiOpen" action="command:stop_1" />
+			<button id="Shade1Close" icon="#icShadesClosed"   action="command:close_1" />
+			<button id="Shade1My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_1" visible="{visible_my_1}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade1Slider" label="^PositionLabel" value="{openPercent_1}" visible="{visible_slider_1}" />
+		</controlgroup>
+
+		<!-- Slot 2 -->
+		<subheader id="Shade2Hdr" label="{shadeLabel_2}" visible="{visible_2}" />
+		<controlgroup visible="{visible_2}">
+		  <buttongroup>
+			<button id="Shade2Open"  icon="#icShadesOpen"     action="command:open_2" />
+			<button id="Shade2Stop"  icon="#icShadesSemiOpen" action="command:stop_2" />
+			<button id="Shade2Close" icon="#icShadesClosed"   action="command:close_2" />
+			<button id="Shade2My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_2" visible="{visible_my_2}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade2Slider" label="^PositionLabel" value="{openPercent_2}" visible="{visible_slider_2}" />
+		</controlgroup>
+
+		<!-- Slot 3 -->
+		<subheader id="Shade3Hdr" label="{shadeLabel_3}" visible="{visible_3}" />
+		<controlgroup visible="{visible_3}">
+		  <buttongroup>
+			<button id="Shade3Open"  icon="#icShadesOpen"     action="command:open_3" />
+			<button id="Shade3Stop"  icon="#icShadesSemiOpen" action="command:stop_3" />
+			<button id="Shade3Close" icon="#icShadesClosed"   action="command:close_3" />
+			<button id="Shade3My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_3" visible="{visible_my_3}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade3Slider" label="^PositionLabel" value="{openPercent_3}" visible="{visible_slider_3}" />
+		</controlgroup>
+
+		<!-- Slot 4 -->
+		<subheader id="Shade4Hdr" label="{shadeLabel_4}" visible="{visible_4}" />
+		<controlgroup visible="{visible_4}">
+		  <buttongroup>
+			<button id="Shade4Open"  icon="#icShadesOpen"     action="command:open_4" />
+			<button id="Shade4Stop"  icon="#icShadesSemiOpen" action="command:stop_4" />
+			<button id="Shade4Close" icon="#icShadesClosed"   action="command:close_4" />
+			<button id="Shade4My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_4" visible="{visible_my_4}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade4Slider" label="^PositionLabel" value="{openPercent_4}" visible="{visible_slider_4}" />
+		</controlgroup>
+
+		<!-- Slot 5 -->
+		<subheader id="Shade5Hdr" label="{shadeLabel_5}" visible="{visible_5}" />
+		<controlgroup visible="{visible_5}">
+		  <buttongroup>
+			<button id="Shade5Open"  icon="#icShadesOpen"     action="command:open_5" />
+			<button id="Shade5Stop"  icon="#icShadesSemiOpen" action="command:stop_5" />
+			<button id="Shade5Close" icon="#icShadesClosed"   action="command:close_5" />
+			<button id="Shade5My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_5" visible="{visible_my_5}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade5Slider" label="^PositionLabel" value="{openPercent_5}" visible="{visible_slider_5}" />
+		</controlgroup>
+
+		<!-- Slot 6 -->
+		<subheader id="Shade6Hdr" label="{shadeLabel_6}" visible="{visible_6}" />
+		<controlgroup visible="{visible_6}">
+		  <buttongroup>
+			<button id="Shade6Open"  icon="#icShadesOpen"     action="command:open_6" />
+			<button id="Shade6Stop"  icon="#icShadesSemiOpen" action="command:stop_6" />
+			<button id="Shade6Close" icon="#icShadesClosed"   action="command:close_6" />
+			<button id="Shade6My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_6" visible="{visible_my_6}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade6Slider" label="^PositionLabel" value="{openPercent_6}" visible="{visible_slider_6}" />
+		</controlgroup>
+
+		<!-- Slot 7 -->
+		<subheader id="Shade7Hdr" label="{shadeLabel_7}" visible="{visible_7}" />
+		<controlgroup visible="{visible_7}">
+		  <buttongroup>
+			<button id="Shade7Open"  icon="#icShadesOpen"     action="command:open_7" />
+			<button id="Shade7Stop"  icon="#icShadesSemiOpen" action="command:stop_7" />
+			<button id="Shade7Close" icon="#icShadesClosed"   action="command:close_7" />
+			<button id="Shade7My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_7" visible="{visible_my_7}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade7Slider" label="^PositionLabel" value="{openPercent_7}" visible="{visible_slider_7}" />
+		</controlgroup>
+
+		<!-- Slot 8 -->
+		<subheader id="Shade8Hdr" label="{shadeLabel_8}" visible="{visible_8}" />
+		<controlgroup visible="{visible_8}">
+		  <buttongroup>
+			<button id="Shade8Open"  icon="#icShadesOpen"     action="command:open_8" />
+			<button id="Shade8Stop"  icon="#icShadesSemiOpen" action="command:stop_8" />
+			<button id="Shade8Close" icon="#icShadesClosed"   action="command:close_8" />
+			<button id="Shade8My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_8" visible="{visible_my_8}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade8Slider" label="^PositionLabel" value="{openPercent_8}" visible="{visible_slider_8}" />
+		</controlgroup>
+
+		<!-- Slot 9 -->
+		<subheader id="Shade9Hdr" label="{shadeLabel_9}" visible="{visible_9}" />
+		<controlgroup visible="{visible_9}">
+		  <buttongroup>
+			<button id="Shade9Open"  icon="#icShadesOpen"     action="command:open_9" />
+			<button id="Shade9Stop"  icon="#icShadesSemiOpen" action="command:stop_9" />
+			<button id="Shade9Close" icon="#icShadesClosed"   action="command:close_9" />
+			<button id="Shade9My"    label="^MyLabel"         icon="#icShadesSemiOpen" action="command:my_9" visible="{visible_my_9}" />
+		  </buttongroup>
+		  <segmentedslider id="Shade9Slider" label="^PositionLabel" value="{openPercent_9}" visible="{visible_slider_9}" />
+		</controlgroup>
+
+	  </controls>
+	</layout>
+
+  </layouts>
+  <alerts />
+</uidefinition>
