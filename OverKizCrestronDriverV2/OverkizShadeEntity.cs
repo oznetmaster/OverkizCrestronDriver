@@ -100,20 +100,44 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		IsMoving = moving;
 		}
 
+	/// <summary>Stored display-name override (from <c>ShadeDisplayNames</c> config); null means use <see cref="ApiLabel"/>.</summary>
+	private string _displayNameOverride;
+
 	/// <inheritdoc/>
-	public void UpdateLabel (string newLabel)
+	public void UpdateLabel (string newApiLabel)
 		{
-		var label = newLabel?.Trim () ?? string.Empty;
-		if (string.Equals (DeviceLabel, label, StringComparison.Ordinal))
+		var label = newApiLabel?.Trim () ?? string.Empty;
+		if (string.Equals (ApiLabel, label, StringComparison.Ordinal))
 			return;
 
-		DeviceLabel = label;
+		ApiLabel = label;
+		var effectiveLabel = !string.IsNullOrEmpty (_displayNameOverride) ? _displayNameOverride : ApiLabel;
+		if (string.Equals (DeviceLabel, effectiveLabel, StringComparison.Ordinal))
+			return;
+
+		DeviceLabel = effectiveLabel;
 
 		// Only notify if the framework has commissioned the entity.
-		if (_frameworkReady != 0)
+		if (Volatile.Read (ref _frameworkReady) != 0)
 			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
 
-		Log ("UpdateLabel: label updated to '" + DeviceLabel + "'");
+		Log ("UpdateLabel: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
+		}
+
+	/// <summary>Updates the display-name override and refreshes <see cref="DeviceLabel"/>.</summary>
+	public void UpdateDisplayName (string displayName)
+		{
+		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
+		var effectiveLabel = _displayNameOverride ?? ApiLabel;
+		if (string.Equals (DeviceLabel, effectiveLabel, StringComparison.Ordinal))
+			return;
+
+		DeviceLabel = effectiveLabel;
+
+		if (Volatile.Read (ref _frameworkReady) != 0)
+			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
+
+		Log ("UpdateDisplayName: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
 		}
 
 	/// <inheritdoc/>
@@ -158,13 +182,25 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	public void StartPolling (OverkizWorkQueue queue)
 		{
 		Log ("StartPolling called; isOneWay=" + IsOneWay + " frameworkReady=" + _frameworkReady);
-		Interlocked.Exchange (ref _frameworkReady, 1);
+		Volatile.Write (ref _frameworkReady, 1);
 		if (!IsOneWay)
 			{
 			_queue = queue;
 			StopPolling ();
 			_pollTimer = new Timer (PollCallback, null, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
 			}
+
+		// Push initial property values so the framework/touchscreen renders correctly.
+		if (_uiDefinition != null)
+			{
+			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
+			if (uiValue.HasValue)
+				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
+			}
+		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
+		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
+		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
+		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
 
 		SetOnline (true);
 		}
@@ -201,6 +237,9 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			NotifyPropertyChanged ("openPercent", new DriverEntityValue (value));
 			}
 		} = 100;
+
+	/// <summary>The raw Overkiz API label for this device — used for room-group matching and identity. Never overridden by display-name config.</summary>
+	internal string ApiLabel { get; private set; }
 
 	/// <summary>Human-readable label of the device from the Overkiz API (the only name the driver ever knows).</summary>
 	[EntityProperty (Id = "deviceLabel", FriendlyName = "Device Label")]
@@ -271,6 +310,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		string controllerId,
 		string deviceUrl,
 		string deviceLabel,
+		string displayName,
 		bool isOneWay,
 		bool hasMyCommand,
 		Action<string> sendCommand,
@@ -281,7 +321,9 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		: base (controllerId)
 		{
 		_deviceUrl = deviceUrl ?? throw new ArgumentNullException (nameof (deviceUrl));
-		DeviceLabel = deviceLabel ?? string.Empty;
+		ApiLabel            = deviceLabel ?? string.Empty;
+		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
+		DeviceLabel         = _displayNameOverride ?? ApiLabel;
 		IsOneWay = isOneWay;
 		HasMyCommand = hasMyCommand;
 		_sendCommand = sendCommand ?? throw new ArgumentNullException (nameof (sendCommand));
