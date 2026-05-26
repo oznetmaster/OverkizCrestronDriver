@@ -262,6 +262,20 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			ApplyConfigurationItems,
 			null,
 			null);
+
+		// ConfigurationItemsUpdated fires in the live service context after the framework
+		// processes configuration — on both release and beta firmware.  Use it to restore
+		// cached sub-controllers synchronously so they are visible before async discovery completes.
+		// NOTE: undocumented event found via reflection; guard against older runtime SDK versions
+		// that may not expose it.
+		try
+			{
+			ConfigurationController.ConfigurationItemsUpdated += OnConfigurationItemsUpdated;
+			}
+		catch (Exception ex)
+			{
+			Log ("ConfigurationItemsUpdated subscription failed (runtime SDK too old?): " + ex.Message);
+			}
 		}
 
 	public override void Dispose ()
@@ -292,6 +306,12 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		}
 
 	// ── Private: configuration callback ──────────────────────────────────
+
+	private void OnConfigurationItemsUpdated (object sender, Crestron.DeviceDrivers.EntityModel.ConfigurationItemsUpdatedEventArgs e)
+		{
+		Log ("ConfigurationItemsUpdated: restoring from cache if empty");
+		RestoreFromCacheIfEmpty ();
+		}
 
 	private ConfigurationItemErrors ApplyConfigurationItems (
 		DataDrivenConfigurationController.ApplyConfigurationAction action,
