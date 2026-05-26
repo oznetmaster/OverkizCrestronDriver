@@ -4,7 +4,7 @@ A **Crestron Home** extension driver that integrates Overkiz-compatible smart-ho
 (Somfy TaHoma, Atlantic Cozytouch, Hitachi Hi Kumo, and others) as shade/blind devices,
 supporting both cloud and local LAN connections.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-blue.svg)](LICENSE)
 
 ---
 
@@ -154,8 +154,12 @@ The build pipeline:
 
 ## License
 
-MIT © 2026 Neil Colvin — see [LICENSE](LICENSE).
+MIT + Commons Clause © 2026 Neil Colvin — see [LICENSE](LICENSE).
+
+Free to use and modify. You may not sell the Software as a standalone product or sublicense it.
+Commercial system integration work (e.g. a Crestron installer commissioning a customer system) is
+explicitly permitted, even where a fee is charged for that service.
 
 > **Note:** This project references [Crestron.DeviceDrivers.DevKit](https://www.nuget.org/packages/Crestron.DeviceDrivers.DevKit),
 > which is subject to Crestron's SDK license agreement. That license governs the SDK libraries only;
-> the source code in this repository is MIT-licensed independently.
+> the source code in this repository is licensed independently under the terms above.
