@@ -16,8 +16,8 @@
 						"Website": "",
 						"PhoneNumber": ""
 				},
-				"DriverVersion": "2.0.000.0121",
-				"VersionDate": "2026-05-26 06:44:51.084"
+				"DriverVersion": "2.0.000.0135",
+				"VersionDate": "2026-05-26 11:40:50.924"
 		},
 		"ConfigurationSteps": {
 				"Items": [
@@ -57,25 +57,33 @@
 						},
 						{
 								"Id": "LocalToken",
-										"Title": "Local API Token",
-										"Description": "Developer-mode bearer token generated from your Somfy cloud account (Local mode only).",
-										"Required": false,
-										"Persistent": true,
-										"ValueType": "String"
-								},
-								{
-										"Id": "RoomGroups",
-										"Title": "Room Groups",
-										"Description": "Optional. Group shades into rooms for simultaneous control. Format: RoomName=Shade1,Shade2; RoomName2=Shade3. Shade names must match exactly.",
-										"Required": false,
-										"Persistent": true,
-										"ValueType": "String"
-								}
+								"Title": "Local API Token",
+								"Description": "Developer-mode bearer token generated from your Somfy cloud account (Local mode only).",
+								"Required": false,
+								"Persistent": true,
+								"ValueType": "String"
+						},
+						{
+								"Id": "RoomGroups",
+								"Title": "Room Groups",
+								"Description": "Optional. Group shades into rooms for simultaneous control. Format: RoomKey:Room Title=Shade1ApiLabel:Shade 1 Title,Shade2ApiLabel:Shade 2 Title; RoomKey2=Shade3ApiLabel. The part before ':' is the API/matching label; the optional part after ':' is the display name shown as the room title or subheading. Shade API labels must match the device names reported by the Overkiz gateway.",
+								"Required": false,
+								"Persistent": true,
+								"ValueType": "String"
+						},
+						{
+								"Id": "ShadeDisplayNames",
+								"Title": "Shade Display Names",
+								"Description": "Optional. Override the title shown for individual shades. Format: ApiLabel:Display Name;ApiLabel2:Display Name2. The API label must match the device name reported by the Overkiz gateway exactly.",
+								"Required": false,
+								"Persistent": true,
+								"ValueType": "String"
+						}
 				],
 				"Steps": [
 						{
 								"StepId": "Connection",
-								"Items": [ "CloudUsername", "CloudPassword", "CloudServer", "GatewayIP", "LocalToken", "RoomGroups" ],
+								"Items": [ "CloudUsername", "CloudPassword", "CloudServer", "GatewayIP", "LocalToken", "RoomGroups", "ShadeDisplayNames" ],
 								"NextStep": null
 						}
 				],

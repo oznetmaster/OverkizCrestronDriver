@@ -20,6 +20,7 @@ namespace OverKiz.CrestronDriver;
 /// </summary>
 internal sealed class RoomMember (
 	string label,
+	string displayName,
 	bool isTwoWay,
 	bool hasMy,
 	Action open,
@@ -29,10 +30,17 @@ internal sealed class RoomMember (
 	Action<int> setOpenPercent,
 	Func<int> getOpenPercent)
 	{
+	/// <summary>Overkiz API label — used for identity and slot matching.</summary>
 	public string Label
 		{
 		get;
 		} = label ?? string.Empty;
+
+	/// <summary>Display name shown in the room subheading (falls back to <see cref="Label"/> when not specified).</summary>
+	public string DisplayName
+		{
+		get;
+		} = string.IsNullOrEmpty (displayName) ? (label ?? string.Empty) : displayName;
 	public bool IsTwoWay
 		{
 		get;
@@ -88,9 +96,10 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	// Maximum number of shade slots supported by the static UI definition.
 	private const int MAX_SLOTS = 10;
 
-	// The configured label list for this room (from RoomGroups config).
+	// The configured slot list for this room (from RoomGroups config).
 	// May have fewer than MaxSlots entries; extra slots stay hidden.
-	private readonly IReadOnlyList<string> _allConfiguredLabels;
+	// ApiLabel is used for matching; DisplayName is shown in the subheading.
+	private readonly IReadOnlyList<RoomMemberConfig> _slotConfigs;
 
 	// ── Dynamic per-member property values ───────────────────────────────
 	// "openPercent_N"   → current open percent (int)
@@ -259,7 +268,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	public OverkizRoomEntity (
 		string controllerId,
 		string roomLabel,
-		IReadOnlyList<string> allConfiguredLabels,
+		IReadOnlyList<RoomMemberConfig> slotConfigs,
 		IReadOnlyList<RoomMember> members,
 		Action openAll,
 		Action closeAll,
@@ -273,7 +282,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		: base (controllerId)
 		{
 		_ = initLogger; // reserved for future use
-		_allConfiguredLabels = allConfiguredLabels ?? throw new ArgumentNullException (nameof (allConfiguredLabels));
+		_slotConfigs = slotConfigs ?? throw new ArgumentNullException (nameof (slotConfigs));
 		_members = members ?? throw new ArgumentNullException (nameof (members));
 		_openAll = openAll ?? throw new ArgumentNullException (nameof (openAll));
 		_closeAll = closeAll ?? throw new ArgumentNullException (nameof (closeAll));
@@ -294,10 +303,11 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		// count are permanently hidden (visible_N = false).
 		for (var i = 0; i < MAX_SLOTS; i++)
 			{
-			var configured = i < _allConfiguredLabels.Count;
-			var slotLabel = configured ? _allConfiguredLabels[i] : string.Empty;
-			RoomMember m = null;
-			var present = configured && labelToMember.TryGetValue (slotLabel, out m);
+			var configured = i < _slotConfigs.Count;
+			var apiLabel   = configured ? _slotConfigs[i].ApiLabel : string.Empty;
+			var dispName   = configured ? _slotConfigs[i].DisplayName : string.Empty;
+			RoomMember m   = null;
+			var present    = configured && labelToMember.TryGetValue (apiLabel, out m);
 			if (present)
 				{
 				IsTwoWay |= m.IsTwoWay;
@@ -305,13 +315,13 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 				}
 
 			_memberProps["openPercent_" + i] = new DriverEntityValue (present ? (m?.GetOpenPercent?.Invoke () ?? 0) : 0);
-			_memberProps["shadeLabel_" + i] = new DriverEntityValue (slotLabel);
+			_memberProps["shadeLabel_" + i] = new DriverEntityValue (dispName);
 			_memberProps["visible_" + i] = new DriverEntityValue (present);
 			_memberProps["visible_slider_" + i] = new DriverEntityValue (present && m != null && m.IsTwoWay);
 			_memberProps["visible_my_" + i] = new DriverEntityValue (present && m != null && m.HasMy);
 			}
 
-		Log ("Constructed: label=" + DeviceLabel + " slots=" + _allConfiguredLabels.Count + " members=" + _members.Count + " isTwoWay=" + IsTwoWay + " hasMy=" + HasMy);
+		Log ("Constructed: label=" + DeviceLabel + " slots=" + _slotConfigs.Count + " members=" + _members.Count + " isTwoWay=" + IsTwoWay + " hasMy=" + HasMy);
 
 		// Load the shared static room UI definition from the package directory.
 		try
@@ -467,12 +477,12 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	/// </summary>
 	private RoomMember GetSlotMember (int slotIndex)
 		{
-		if (slotIndex < 0 || slotIndex >= _allConfiguredLabels.Count)
+		if (slotIndex < 0 || slotIndex >= _slotConfigs.Count)
 			return null;
-		var slotLabel = _allConfiguredLabels[slotIndex];
+		var apiLabel = _slotConfigs[slotIndex].ApiLabel;
 		foreach (RoomMember m in _members)
 			{
-			if (string.Equals (m.Label, slotLabel, StringComparison.OrdinalIgnoreCase))
+			if (string.Equals (m.Label, apiLabel, StringComparison.OrdinalIgnoreCase))
 				return m;
 			}
 
@@ -498,10 +508,10 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		HasMy = false;
 		for (var i = 0; i < MAX_SLOTS; i++)
 			{
-			var configured = i < _allConfiguredLabels.Count;
-			var slotLabel = configured ? _allConfiguredLabels[i] : string.Empty;
-			RoomMember m = null;
-			var present = configured && labelToMember.TryGetValue (slotLabel, out m);
+			var configured = i < _slotConfigs.Count;
+			var apiLabel   = configured ? _slotConfigs[i].ApiLabel : string.Empty;
+			RoomMember m   = null;
+			var present    = configured && labelToMember.TryGetValue (apiLabel, out m);
 			if (present)
 				{
 				IsTwoWay |= m.IsTwoWay;
@@ -527,7 +537,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 				}
 			}
 
-		Log ("UpdateMembers: members=" + _members.Count + " slots=" + _allConfiguredLabels.Count + " isTwoWay=" + IsTwoWay + " hasMy=" + HasMy);
+		Log ("UpdateMembers: members=" + _members.Count + " slots=" + _slotConfigs.Count + " isTwoWay=" + IsTwoWay + " hasMy=" + HasMy);
 		}
 
 	}

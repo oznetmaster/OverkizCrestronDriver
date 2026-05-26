@@ -27,6 +27,26 @@ using System.IO;
 namespace OverKiz.CrestronDriver;
 
 /// <summary>
+/// Holds the parsed configuration for one room group entry.
+/// <see cref="RoomDisplayName"/> is the display title for the room aggregate (falls back to the room key when not specified).
+/// <see cref="Members"/> lists each shade with its Overkiz API label (used for matching) and an optional display name.
+/// </summary>
+internal sealed class RoomGroupEntry (string roomDisplayName, IReadOnlyList<RoomMemberConfig> members)
+	{
+	public string RoomDisplayName { get; } = roomDisplayName;
+	public IReadOnlyList<RoomMemberConfig> Members { get; } = members;
+	}
+
+/// <summary>Pairing of the Overkiz API label (used for identity/matching) and the display name shown in the UI.</summary>
+internal sealed class RoomMemberConfig (string apiLabel, string displayName)
+	{
+	/// <summary>Overkiz API label — used for device matching.</summary>
+	public string ApiLabel { get; } = apiLabel;
+	/// <summary>Display label shown as the subheading in the room tile (falls back to <see cref="ApiLabel"/> when not specified).</summary>
+	public string DisplayName { get; } = displayName;
+	}
+
+/// <summary>
 /// SDK V2 Platform Driver root entity.
 /// Connects to an Overkiz-compatible gateway (cloud or local), discovers all
 /// controllable shade devices, and exposes them as dynamic child entities
@@ -42,9 +62,13 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private string _gatewayIp = string.Empty;
 	private string _localToken = string.Empty;
 	private string _roomGroupsRaw = string.Empty;
+	private string _shadeDisplayNamesRaw = string.Empty;
 
-	/// <summary>Parsed room groups: room label → list of shade labels (case-insensitive match).</summary>
-	private Dictionary<string, List<string>> _roomGroups = [];
+	/// <summary>Parsed room groups: room key → entry with display name and per-member (apiLabel, displayName) pairs.</summary>
+	private Dictionary<string, RoomGroupEntry> _roomGroups = [];
+
+	/// <summary>Optional per-shade display name overrides: normalised API label → display name.</summary>
+	private Dictionary<string, string> _shadeDisplayNames = new(StringComparer.OrdinalIgnoreCase);
 
 	private bool IsLocalMode =>
 		!string.IsNullOrEmpty (_gatewayIp) && !string.IsNullOrEmpty (_localToken);
@@ -53,10 +77,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	private string _appliedUsername = null;
 	private string _appliedPassword = null;
-	private string _appliedServer   = null;
-	private string _appliedIp       = null;
-	private string _appliedToken    = null;
+	private string _appliedServer = null;
+	private string _appliedIp = null;
+	private string _appliedToken = null;
 	private string _appliedRoomGroups = null;
+	private string _appliedShadeDisplayNames = null;
 
 	// ── Logger ────────────────────────────────────────────────────────────
 
@@ -222,7 +247,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			ApplyConfigurationItems,
 			null,
 			null);
-			}
+		}
 
 	public override void Dispose ()
 		{
@@ -284,6 +309,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				if (values.TryGetValue ("RoomGroups", out v) && v.HasValue)
 					_roomGroupsRaw = v.Value.GetValue<string> () ?? _roomGroupsRaw;
 
+				if (values.TryGetValue ("ShadeDisplayNames", out v) && v.HasValue)
+					_shadeDisplayNamesRaw = v.Value.GetValue<string> () ?? _shadeDisplayNamesRaw;
+
 				SetReady (true);
 
 				// Avoid double-init: the SDK fires ApplyConfigurationItems more than
@@ -291,28 +319,41 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				// the async connect task has had a chance to complete (so an
 				// OnlineIndicatorIsOnline check would let both through).  Guard with
 				// an in-flight flag instead.
-				var configChanged =
-					_cloudUsername  != _appliedUsername  ||
-					_cloudPassword  != _appliedPassword  ||
-					_cloudServer    != _appliedServer    ||
-					_gatewayIp      != _appliedIp        ||
-					_localToken     != _appliedToken     ||
-					_roomGroupsRaw  != _appliedRoomGroups;
+				var connectionChanged =
+					_cloudUsername != _appliedUsername ||
+					_cloudPassword != _appliedPassword ||
+					_cloudServer != _appliedServer ||
+					_gatewayIp != _appliedIp ||
+					_localToken != _appliedToken;
+
+				var displayChanged =
+					_roomGroupsRaw != _appliedRoomGroups ||
+					_shadeDisplayNamesRaw != _appliedShadeDisplayNames;
 
 				bool shouldConnect;
 				lock (_connectLock)
-					shouldConnect = configChanged || !_connectInFlight;
+					shouldConnect = connectionChanged || !_connectInFlight;
 
 				if (shouldConnect)
 					{
-					_appliedUsername  = _cloudUsername;
-					_appliedPassword  = _cloudPassword;
-					_appliedServer    = _cloudServer;
-					_appliedIp        = _gatewayIp;
-					_appliedToken     = _localToken;
+					_appliedUsername = _cloudUsername;
+					_appliedPassword = _cloudPassword;
+					_appliedServer = _cloudServer;
+					_appliedIp = _gatewayIp;
+					_appliedToken = _localToken;
 					_appliedRoomGroups = _roomGroupsRaw;
-					_roomGroups        = ParseRoomGroups (_roomGroupsRaw);
+					_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
+					_roomGroups = ParseRoomGroups (_roomGroupsRaw);
+					_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
 					Connect ();
+					}
+				else if (displayChanged)
+					{
+					_appliedRoomGroups = _roomGroupsRaw;
+					_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
+					_roomGroups = ParseRoomGroups (_roomGroupsRaw);
+					_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
+					ApplyDisplayConfig ();
 					}
 				else
 					{
@@ -321,10 +362,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 				return null;
 
-				case DataDrivenConfigurationController.ApplyConfigurationAction.ClearValues:
-					Disconnect ();
-					SetReady (false);
-					break;
+			case DataDrivenConfigurationController.ApplyConfigurationAction.ClearValues:
+				Disconnect ();
+				SetReady (false);
+				break;
 			}
 
 		return null;
@@ -392,7 +433,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 							_connectInFlight = false;
 						}
 					}
-				});
+			});
 		}
 
 	private void Disconnect ()
@@ -400,9 +441,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		// Clear the snapshot so the next ApplyConfigurationItems triggers a fresh connect.
 		_appliedUsername = null;
 		_appliedPassword = null;
-		_appliedServer   = null;
-		_appliedIp       = null;
-		_appliedToken    = null;
+		_appliedServer = null;
+		_appliedIp = null;
+		_appliedToken = null;
 
 		lock (_connectLock)
 			{
@@ -623,38 +664,53 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			return (null, existing);
 
 		var label = GetRoomLabel (placeOid) ?? placeOid;
-		var cid   = RoomControllerId (placeOid);
+		var cid = RoomControllerId (placeOid);
 
-		// If Crestron Home has already stored a user-defined name for this room, use it.
-		var roomLabel = ManagedDevices != null && ManagedDevices.TryGetValue (cid, out PlatformManagedDevice stored)
-			? stored.Name ?? label
-			: label;
+		// Prefer config-supplied room display name; fall back to API/place label.
+		string roomDisplayName;
+		IReadOnlyList<RoomMemberConfig> slotConfigs;
+		if (_roomGroups.TryGetValue (placeOid, out RoomGroupEntry grp))
+			{
+			roomDisplayName = grp.RoomDisplayName;
+			slotConfigs = grp.Members;
+			}
+		else
+			{
+			roomDisplayName = label;
+			// No configured slots — build from whatever members exist right now.
+			List<RoomMember> fallbackMembers = BuildMemberList (placeOid);
+			slotConfigs = [.. fallbackMembers.Select (m => new RoomMemberConfig (m.Label, m.Label))];
+			}
+
+		// Use config display name if explicitly provided; only fall back to stored name when no config display name is set.
+		bool hasConfigDisplayName = _roomGroups.ContainsKey (placeOid) && !string.IsNullOrEmpty (roomDisplayName);
+		var roomLabel = hasConfigDisplayName
+			? roomDisplayName
+			: ManagedDevices != null && ManagedDevices.TryGetValue (cid, out PlatformManagedDevice stored)
+				? stored.Name ?? roomDisplayName
+				: roomDisplayName;
 
 		List<RoomMember> members = BuildMemberList (placeOid);
 
 		Log ("CreateRoomEntityLocked: placeOid=" + placeOid + " label=" + roomLabel + " members=" + members.Count);
 
-		IReadOnlyList<string> configuredLabels = _roomGroups.TryGetValue (placeOid, out List<string> grp)
-			? grp
-			: (IReadOnlyList<string>)[.. members.Select (m => m.Label)];
-
 		var room = new OverkizRoomEntity (
-			controllerId:        cid,
-			roomLabel:           roomLabel,
-			allConfiguredLabels: configuredLabels,
-			members:             members,
-			openAll:             () => SendRoomCommand (placeOid, "open"),
-			closeAll:          () => SendRoomCommand (placeOid, "close"),
-			stopAll:           () => SendRoomCommand (placeOid, "stop"),
-			myAll:             () => SendRoomCommand (placeOid, "my"),
+			controllerId: cid,
+			roomLabel: roomLabel,
+			slotConfigs: slotConfigs,
+			members: members,
+			openAll: () => SendRoomCommand (placeOid, "open"),
+			closeAll: () => SendRoomCommand (placeOid, "close"),
+			stopAll: () => SendRoomCommand (placeOid, "stop"),
+			myAll: () => SendRoomCommand (placeOid, "my"),
 			setOpenPercentAll: pct =>
 				{
-				var closure = 100 - Math.Max (0, Math.Min (100, pct));
-				SendRoomCommand (placeOid, "setClosure", [closure]);
+					var closure = 100 - Math.Max (0, Math.Min (100, pct));
+					SendRoomCommand (placeOid, "setClosure", [closure]);
 				},
-			initLogger:              _resources.InitLogger,
-				logger:                  _logger,
-				resources:               _resources,
+			initLogger: _resources.InitLogger,
+				logger: _logger,
+				resources: _resources,
 				driverDataDirectoryPath: _args.DriverDataDirectoryPath);
 
 		_roomEntities[placeOid] = room;
@@ -683,23 +739,34 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (!_roomToShades.TryGetValue (placeOid, out List<string> memberUrls))
 			return members;
 
+		// Build a lookup of configured display names for this room's members.
+		var displayNameMap = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
+		if (_roomGroups.TryGetValue (placeOid, out RoomGroupEntry entry))
+			{
+			foreach (RoomMemberConfig cfg in entry.Members)
+				displayNameMap[cfg.ApiLabel] = cfg.DisplayName;
+			}
+
 		foreach (var url in memberUrls)
 			{
 			if (_entities.TryGetValue (url, out IOverkizEntity e) && e is OverkizShadeEntity shade)
 				{
 				var capturedUrl = url;
+				var apiLabel = shade.ApiLabel;
+				var displayName = displayNameMap.TryGetValue (apiLabel, out string dn) ? dn : apiLabel;
 				members.Add (new RoomMember (
-					label:          shade.DeviceLabel,
-					isTwoWay:       shade.IsTwoWay,
-					hasMy:          shade.HasMyCommand,
-					open:           () => SendDeviceCommand (capturedUrl, "open"),
-					close:          () => SendDeviceCommand (capturedUrl, "close"),
-					stop:           () => SendDeviceCommand (capturedUrl, "stop"),
-					my:             () => SendDeviceCommand (capturedUrl, "my"),
+					label: apiLabel,
+					displayName: displayName,
+					isTwoWay: shade.IsTwoWay,
+					hasMy: shade.HasMyCommand,
+					open: () => SendDeviceCommand (capturedUrl, "open"),
+					close: () => SendDeviceCommand (capturedUrl, "close"),
+					stop: () => SendDeviceCommand (capturedUrl, "stop"),
+					my: () => SendDeviceCommand (capturedUrl, "my"),
 					setOpenPercent: pct =>
 						{
-						var closure = 100 - Math.Max (0, Math.Min (100, pct));
-						SendDeviceCommand (capturedUrl, "setClosure", [closure]);
+							var closure = 100 - Math.Max (0, Math.Min (100, pct));
+							SendDeviceCommand (capturedUrl, "setClosure", [closure]);
 						},
 					getOpenPercent: () => shade.OpenPercent));
 				}
@@ -762,6 +829,37 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		return (room, copy);
 		}
 
+	/// <summary>
+	/// Applies updated display-name configuration to already-discovered entities
+	/// without reconnecting. Updates shade display labels and rebuilds room member
+	/// lists in place.
+	/// </summary>
+	private void ApplyDisplayConfig ()
+		{
+		Log ("ApplyDisplayConfig: applying updated display names");
+		lock (_entitiesLock)
+			{
+			// Update each shade's display label.
+			foreach (IOverkizEntity e in _entities.Values)
+				{
+				if (e is OverkizShadeEntity shade)
+					{
+					_ = _shadeDisplayNames.TryGetValue (shade.ApiLabel, out string dn);
+					shade.UpdateDisplayName (dn);
+					}
+				}
+
+			// Rebuild room member lists in place and update room titles.
+			var managedDevices = new Dictionary<string, PlatformManagedDevice> ();
+			foreach (string placeOid in _roomEntities.Keys)
+				{
+				_ = RebuildRoomMembersLocked (placeOid, ref managedDevices, out OverkizRoomEntity room);
+				if (room != null && _roomGroups.TryGetValue (placeOid, out RoomGroupEntry grp) && !string.IsNullOrEmpty (grp.RoomDisplayName))
+					room.UpdateLabel (grp.RoomDisplayName);
+				}
+			}
+		}
+
 	// ── Private: room-group config parsing ───────────────────────────────
 
 	/// <summary>
@@ -772,9 +870,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		{
 		if (string.IsNullOrEmpty (shadeLabel))
 			return null;
-		foreach (KeyValuePair<string, List<string>> kv in _roomGroups)
+		foreach (KeyValuePair<string, RoomGroupEntry> kv in _roomGroups)
 			{
-			if (kv.Value.Any (l => string.Equals (l, shadeLabel, StringComparison.OrdinalIgnoreCase)))
+			if (kv.Value.Members.Any (m => string.Equals (m.ApiLabel, shadeLabel, StringComparison.OrdinalIgnoreCase)))
 				return kv.Key;
 			}
 
@@ -799,12 +897,15 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	/// <summary>
 	/// Parses the single-line RoomGroups config string into a dictionary.
-	/// Format: "RoomName=Shade1,Shade2; RoomName2=Shade3"
-	/// Keys and values are trimmed; matching against shade labels is case-insensitive.
+	/// Format: "RoomKey:Room Display Title=Shade1:Shade Display 1,Shade2; RoomKey2=Shade3"
+	/// The part before <c>:</c> in the room segment is the API key used for matching;
+	/// the optional part after <c>:</c> is the display name shown as the room title.
+	/// Similarly for each member shade: "ApiLabel:Display Name".
+	/// When a display name is omitted the API label is used for display.
 	/// </summary>
-	private static Dictionary<string, List<string>> ParseRoomGroups (string raw)
+	private static Dictionary<string, RoomGroupEntry> ParseRoomGroups (string raw)
 		{
-		var result = new Dictionary<string, List<string>> (StringComparer.OrdinalIgnoreCase);
+		var result = new Dictionary<string, RoomGroupEntry> (StringComparer.OrdinalIgnoreCase);
 		if (string.IsNullOrWhiteSpace (raw))
 			return result;
 
@@ -814,18 +915,78 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			if (eq <= 0)
 				continue;
 
-			var roomName = NormalizeLabel (group[..eq]);
-			if (string.IsNullOrEmpty (roomName))
+			// Parse room key and optional room display name: "RoomKey:Room Title"
+			var roomSegment = group[..eq];
+			var roomColon = roomSegment.IndexOf (':');
+			string roomKey, roomDisplayName;
+			if (roomColon > 0)
+				{
+				roomKey = NormalizeLabel (roomSegment[..roomColon]);
+				roomDisplayName = NormalizeLabel (roomSegment[(roomColon + 1)..]);
+				if (string.IsNullOrEmpty (roomDisplayName))
+					roomDisplayName = roomKey;
+				}
+			else
+				{
+				roomKey = NormalizeLabel (roomSegment);
+				roomDisplayName = roomKey;
+				}
+
+			if (string.IsNullOrEmpty (roomKey))
 				continue;
 
+			// Parse member list: "ApiLabel:Display Name,ApiLabel2:Display Name2,..."
 			var members = group[(eq + 1)..]
 				.Split (',')
-				.Select (NormalizeLabel)
-				.Where (s => s.Length > 0)
+				.Select (part =>
+					{
+						var colon = part.IndexOf (':');
+						if (colon > 0)
+							{
+							var api = NormalizeLabel (part[..colon]);
+							var display = NormalizeLabel (part[(colon + 1)..]);
+							if (string.IsNullOrEmpty (display))
+								display = api;
+							return new RoomMemberConfig (api, display);
+							}
+						else
+							{
+							var api = NormalizeLabel (part);
+							return new RoomMemberConfig (api, api);
+							}
+					})
+				.Where (m => m.ApiLabel.Length > 0)
 				.ToList ();
 
 			if (members.Count > 0)
-				result[roomName] = members;
+				result[roomKey] = new RoomGroupEntry (roomDisplayName, members);
+			}
+
+		return result;
+		}
+
+	/// <summary>
+	/// Parses the <c>ShadeDisplayNames</c> config string into a lookup dictionary.
+	/// Format: "ApiLabel:Display Name;ApiLabel2:Display Name2"
+	/// Each entry maps the Overkiz API label to the display name shown as the shade title.
+	/// Entries without a <c>:</c> separator are ignored.
+	/// </summary>
+	private static Dictionary<string, string> ParseShadeDisplayNames (string raw)
+		{
+		var result = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
+		if (string.IsNullOrWhiteSpace (raw))
+			return result;
+
+		foreach (var entry in raw.Split (';'))
+			{
+			var colon = entry.IndexOf (':');
+			if (colon <= 0)
+				continue;
+
+			var apiLabel = NormalizeLabel (entry[..colon]);
+			var displayName = NormalizeLabel (entry[(colon + 1)..]);
+			if (apiLabel.Length > 0 && displayName.Length > 0)
+				result[apiLabel] = displayName;
 			}
 
 		return result;
@@ -887,9 +1048,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				}
 
 			var label = NormalizeLabel (device.Label ?? url);
-				Log ("Queuing device: " + label + " | UIClass: " + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none") + " | Protocol: " + (device.Protocol.HasValue ? device.Protocol.Value.ToString () : "unknown") + " | URL: " + url);
+			Log ("Queuing device: " + label + " | UIClass: " + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none") + " | Protocol: " + (device.Protocol.HasValue ? device.Protocol.Value.ToString () : "unknown") + " | URL: " + url);
 
-				lock (_entitiesLock)
+			lock (_entitiesLock)
 				{
 				if (_entities.ContainsKey (url))
 					continue;
@@ -897,113 +1058,114 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				_entities[url] = entity;
 				controllersToAdd.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
 				managedDevicesCopy[entity.ControllerId] = new PlatformManagedDevice (
-					entity.UxCategory,
-					label,
-					"Somfy / Overkiz",
-					device.UiClass.HasValue ? device.UiClass.Value.ToString () : entity.UxCategory.ToString (),
-					null);
+						entity.UxCategory,
+						label,
+						"Somfy / Overkiz",
+						device.UiClass.HasValue ? device.UiClass.Value.ToString () : entity.UxCategory.ToString (),
+						null);
 
 				Log ("Queued device: " + label + " (id=" + entity.ControllerId + ", url=" + url + ")");
 				}
-				}
+			}
 
 		if (controllersToAdd.Count > 0)
+			{
+			ct.ThrowIfCancellationRequested ();
+			UpdateSubControllers (controllersToAdd, null);
+			ManagedDevices = managedDevicesCopy;
+			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+			Log ("Published " + controllersToAdd.Count + " shade(s)");
+			}
+
+		// Build room groupings unconditionally — a previously-known shade may now
+		// satisfy the minimum count even if no new shades were discovered this pass.
+		if (_roomGroups.Count > 0)
+			{
+			ct.ThrowIfCancellationRequested ();
+
+			// Build a label → url reverse map from all known entities (not just newly queued ones).
+			var labelToUrl = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
+			lock (_entitiesLock)
 				{
-				ct.ThrowIfCancellationRequested ();
-				UpdateSubControllers (controllersToAdd, null);
+				foreach (KeyValuePair<string, IOverkizEntity> kv in _entities)
+					{
+					if (kv.Value is OverkizShadeEntity shade)
+						{
+						labelToUrl[shade.ApiLabel] = kv.Key;
+						Log ("RoomGroup labelMap: '" + shade.ApiLabel + "' → " + kv.Key);
+						}
+					}
+				}
+
+			// Reset room tracking so we always rebuild from the full known set.
+			lock (_entitiesLock)
+				{
+				foreach (KeyValuePair<string, RoomGroupEntry> group in _roomGroups)
+					{
+					var roomKey = group.Key;
+					RoomGroupEntry entry = group.Value;
+					var matchedUrls = entry.Members
+						.Where (m => labelToUrl.ContainsKey (m.ApiLabel))
+						.Select (m => labelToUrl[m.ApiLabel])
+						.ToList ();
+
+					if (matchedUrls.Count == 0)
+						{
+						Log ("RoomGroup '" + roomKey + "': no matching shades found");
+						continue;
+						}
+
+					_placeLabels[roomKey] = entry.RoomDisplayName;
+					foreach (var shadeUrl in matchedUrls)
+						TrackShadeInRoom (shadeUrl, roomKey);
+
+					Log ("RoomGroup '" + roomKey + "': matched " + matchedUrls.Count + " shade(s): " + string.Join (", ", entry.Members.Where (m => labelToUrl.ContainsKey (m.ApiLabel)).Select (m => m.ApiLabel)));
+					}
+				}
+
+			// Create room aggregate entities for any room with ≥1 tracked shade.
+			// If more shades arrive later (via events), the room will be rebuilt then.
+			List<ConfigurableDriverEntity> roomControllersToAdd = [];
+			managedDevicesCopy = new Dictionary<string, PlatformManagedDevice> (ManagedDevices ?? managedDevicesCopy);
+			lock (_entitiesLock)
+				{
+				foreach (KeyValuePair<string, List<string>> kv in _roomToShades.ToList ())
+					{
+					if (kv.Value.Count < 1)
+						continue;
+					(OverkizRoomEntity roomEntity, Dictionary<string, PlatformManagedDevice> updatedDevices) = CreateRoomEntityLocked (kv.Key, managedDevicesCopy);
+					if (roomEntity != null)
+						{
+						managedDevicesCopy = updatedDevices;
+						roomControllersToAdd.Add (new ConfigurableDriverEntity (roomEntity.ControllerId, roomEntity, null));
+						Log ("Room entity created: " + roomEntity.ControllerId + " (" + kv.Value.Count + " shade(s))");
+						}
+					}
+				}
+
+			if (roomControllersToAdd.Count > 0)
+				{
+				UpdateSubControllers (roomControllersToAdd, null);
 				ManagedDevices = managedDevicesCopy;
 				NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
-				Log ("Published " + controllersToAdd.Count + " shade(s)");
 				}
 
-			// Build room groupings unconditionally — a previously-known shade may now
-			// satisfy the minimum count even if no new shades were discovered this pass.
-			if (_roomGroups.Count > 0)
+			// Start polling for room entities (marks them online).
+			lock (_entitiesLock)
 				{
-				ct.ThrowIfCancellationRequested ();
-
-				// Build a label → url reverse map from all known entities (not just newly queued ones).
-				var labelToUrl = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
-				lock (_entitiesLock)
-					{
-					foreach (KeyValuePair<string, IOverkizEntity> kv in _entities)
-						{
-						if (kv.Value is OverkizShadeEntity shade)
-							{
-							labelToUrl[shade.DeviceLabel] = kv.Key;
-							Log ("RoomGroup labelMap: '" + shade.DeviceLabel + "' → " + kv.Key);
-							}
-						}
-					}
-
-				// Reset room tracking so we always rebuild from the full known set.
-				lock (_entitiesLock)
-					{
-					foreach (KeyValuePair<string, List<string>> group in _roomGroups)
-							{
-							var roomName = group.Key;
-							var matchedUrls = group.Value
-								.Where (labelToUrl.ContainsKey)
-								.Select (lbl => labelToUrl[lbl])
-								.ToList ();
-
-							if (matchedUrls.Count == 0)
-								{
-								Log ("RoomGroup '" + roomName + "': no matching shades found");
-								continue;
-								}
-
-							_placeLabels[roomName] = roomName;
-							foreach (var shadeUrl in matchedUrls)
-								TrackShadeInRoom (shadeUrl, roomName);
-
-							Log ("RoomGroup '" + roomName + "': matched " + matchedUrls.Count + " shade(s): " + string.Join (", ", group.Value.Where (labelToUrl.ContainsKey)));
-							}
-					}
-
-				// Create room aggregate entities for any room with ≥1 tracked shade.
-				// If more shades arrive later (via events), the room will be rebuilt then.
-				List<ConfigurableDriverEntity> roomControllersToAdd = [];
-				managedDevicesCopy = new Dictionary<string, PlatformManagedDevice> (ManagedDevices ?? managedDevicesCopy);
-				lock (_entitiesLock)
-					{
-					foreach (KeyValuePair<string, List<string>> kv in _roomToShades)
-						{
-						if (kv.Value.Count < 1)
-							continue;
-						(OverkizRoomEntity roomEntity, Dictionary<string, PlatformManagedDevice> updatedDevices) = CreateRoomEntityLocked (kv.Key, managedDevicesCopy);
-						if (roomEntity != null)
-							{
-							managedDevicesCopy = updatedDevices;
-							roomControllersToAdd.Add (new ConfigurableDriverEntity (roomEntity.ControllerId, roomEntity, null));
-							Log ("Room entity created: " + roomEntity.ControllerId + " (" + kv.Value.Count + " shade(s))");
-							}
-						}
-					}
-
-				if (roomControllersToAdd.Count > 0)
-					{
-					UpdateSubControllers (roomControllersToAdd, null);
-					ManagedDevices = managedDevicesCopy;
-					NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
-					}
-
-				// Start polling for room entities (marks them online).
-				lock (_entitiesLock)
-					{
-					foreach (OverkizRoomEntity r in _roomEntities.Values)
-						r.StartPolling (_workQueue);
-					}
-
-					Log ("Published " + roomControllersToAdd.Count + " room(s)");
-					}
-				else
-					{
-					Log ("RoomGroups not configured — no room entities will be created");
-					}
-
-				Log ("Discovery complete");
+				foreach (OverkizRoomEntity r in _roomEntities.Values)
+					r.StartPolling (_workQueue);
 				}
+
+			Log ("Published " + roomControllersToAdd.Count + " room(s)");
+			}
+		else
+			{
+			Log ("RoomGroups not configured — no room entities will be created");
+			}
+
+		Log ("Discovery complete");
+		}
 
 	/// <summary>
 	/// Re-registers all already-discovered entities with the current framework
@@ -1079,7 +1241,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private async Task RunEventLoopAsync (CancellationToken ct)
 		{
 		const int POLL_INTERVAL_MS = 2_000;
-		const int RETRY_DELAY_MS   = 10_000;
+		const int RETRY_DELAY_MS = 10_000;
 
 		Log ("Event loop: registering listener");
 		try
@@ -1309,52 +1471,52 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				device.UiClass.HasValue ? device.UiClass.Value.ToString () : entity.UxCategory.ToString (),
 				null);
 
-				List<ConfigurableDriverEntity> controllers;
-				Dictionary<string, PlatformManagedDevice> managedDevicesCopy;
-				OverkizRoomEntity newRoomEntity = null;
+			List<ConfigurableDriverEntity> controllers;
+			Dictionary<string, PlatformManagedDevice> managedDevicesCopy;
+			OverkizRoomEntity newRoomEntity = null;
 
-				lock (_entitiesLock)
+			lock (_entitiesLock)
+				{
+				if (_entities.ContainsKey (ev.DeviceUrl))
+					return;
+				_entities[ev.DeviceUrl] = entity;
+
+				// Determine if this shade belongs to any configured room group by label.
+				var roomName = FindRoomGroupForLabel (label);
+				if (roomName != null)
+					TrackShadeInRoom (ev.DeviceUrl, roomName);
+
+				controllers = [new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null)];
+				managedDevicesCopy = ManagedDevices != null
+					? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
+					: [];
+				managedDevicesCopy[entity.ControllerId] = managedDevice;
+
+				var effectiveRoom = roomName;
+				// Update or create the room aggregate for the new member.
+				if (effectiveRoom != null && _roomToShades.TryGetValue (effectiveRoom, out List<string> roomShades) && roomShades.Count >= 1)
 					{
-					if (_entities.ContainsKey (ev.DeviceUrl))
-						return;
-					_entities[ev.DeviceUrl] = entity;
-
-					// Determine if this shade belongs to any configured room group by label.
-					var roomName = FindRoomGroupForLabel (label);
-					if (roomName != null)
-						TrackShadeInRoom (ev.DeviceUrl, roomName);
-
-					controllers = [new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null)];
-					managedDevicesCopy = ManagedDevices != null
-						? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
-						: [];
-					managedDevicesCopy[entity.ControllerId] = managedDevice;
-
-					var effectiveRoom = roomName;
-					// Update or create the room aggregate for the new member.
-						if (effectiveRoom != null && _roomToShades.TryGetValue (effectiveRoom, out List<string> roomShades) && roomShades.Count >= 1)
-							{
-							var updated = RebuildRoomMembersLocked (effectiveRoom, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
-							if (roomEntity != null)
-								{
-								newRoomEntity = updated ? null : roomEntity;
-								if (!updated)
-									controllers.Add (new ConfigurableDriverEntity (roomEntity.ControllerId, roomEntity, null));
-								Log ("Event: DeviceCreated – room " + (updated ? "updated" : "created") + " for '" + effectiveRoom + "' (" + roomShades.Count + " shade(s))");
-								}
-							}
+					var updated = RebuildRoomMembersLocked (effectiveRoom, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
+					if (roomEntity != null)
+						{
+						newRoomEntity = updated ? null : roomEntity;
+						if (!updated)
+							controllers.Add (new ConfigurableDriverEntity (roomEntity.ControllerId, roomEntity, null));
+						Log ("Event: DeviceCreated – room " + (updated ? "updated" : "created") + " for '" + effectiveRoom + "' (" + roomShades.Count + " shade(s))");
+						}
 					}
+				}
 
-				// Register new shade and any newly created room entity.
-				UpdateSubControllers (controllers, null);
+			// Register new shade and any newly created room entity.
+			UpdateSubControllers (controllers, null);
 
-				ManagedDevices = managedDevicesCopy;
-				NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+			ManagedDevices = managedDevicesCopy;
+			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 
-				entity.StartPolling (_workQueue);
-				newRoomEntity?.StartPolling (_workQueue);
+			entity.StartPolling (_workQueue);
+			newRoomEntity?.StartPolling (_workQueue);
 
-				Log ("Event: DeviceCreated – added child " + label + " (id=" + entity.ControllerId + ")");
+			Log ("Event: DeviceCreated – added child " + label + " (id=" + entity.ControllerId + ")");
 			}
 		catch (Exception ex)
 			{
@@ -1383,67 +1545,67 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			}
 
 		// Untrack BEFORE reading the new count so GetRoomShadeCount reflects the removal.
-			placeOid = GetShadeRoom (ev.DeviceUrl);
-			UntrackShadeFromRoom (ev.DeviceUrl);
+		placeOid = GetShadeRoom (ev.DeviceUrl);
+		UntrackShadeFromRoom (ev.DeviceUrl);
 
-			// Update or destroy the room aggregate depending on how many shades remain.
-			OverkizRoomEntity destroyedRoom = null;
-			OverkizRoomEntity newlyCreatedRoom = null;
-			if (placeOid != null)
+		// Update or destroy the room aggregate depending on how many shades remain.
+		OverkizRoomEntity destroyedRoom = null;
+		OverkizRoomEntity newlyCreatedRoom = null;
+		if (placeOid != null)
+			{
+			var remaining = GetRoomShadeCount (placeOid);
+			lock (_entitiesLock)
 				{
-				var remaining = GetRoomShadeCount (placeOid);
-				lock (_entitiesLock)
+				if (remaining >= 1)
 					{
-					if (remaining >= 1)
+					// Update members in place; room entity identity is preserved.
+					var updated = RebuildRoomMembersLocked (placeOid, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
+					if (!updated && roomEntity != null)
+						newlyCreatedRoom = roomEntity;
+					Log ("Event: DeviceDeleted – room " + (updated ? "updated" : "created") + " for '" + placeOid + "' (" + remaining + " shade(s) remaining)");
+					}
+				else
+					{
+					(OverkizRoomEntity old, Dictionary<string, PlatformManagedDevice> afterDestroy) = DestroyRoomEntityLocked (placeOid, managedDevicesCopy);
+					if (old != null)
 						{
-						// Update members in place; room entity identity is preserved.
-						var updated = RebuildRoomMembersLocked (placeOid, ref managedDevicesCopy, out OverkizRoomEntity roomEntity);
-						if (!updated && roomEntity != null)
-							newlyCreatedRoom = roomEntity;
-						Log ("Event: DeviceDeleted – room " + (updated ? "updated" : "created") + " for '" + placeOid + "' (" + remaining + " shade(s) remaining)");
-						}
-					else
-						{
-						(OverkizRoomEntity old, Dictionary<string, PlatformManagedDevice> afterDestroy) = DestroyRoomEntityLocked (placeOid, managedDevicesCopy);
-						if (old != null)
-							{
-							managedDevicesCopy = afterDestroy;
-							destroyedRoom = old;
-							Log ("Event: DeviceDeleted – room entity removed for '" + placeOid + "' (no shades remaining)");
-							}
+						managedDevicesCopy = afterDestroy;
+						destroyedRoom = old;
+						Log ("Event: DeviceDeleted – room entity removed for '" + placeOid + "' (no shades remaining)");
 						}
 					}
 				}
+			}
 
-			// Cancel any in-flight executions for this entity
-			lock (_pendingExecsLock)
+		// Cancel any in-flight executions for this entity
+		lock (_pendingExecsLock)
+			{
+			foreach (var execId in _pendingExecs.Keys
+				.Where (k => ReferenceEquals (_pendingExecs[k], entity))
+				.ToList ())
 				{
-				foreach (var execId in _pendingExecs.Keys
-					.Where (k => ReferenceEquals (_pendingExecs[k], entity))
-					.ToList ())
-					{
 				_ = _pendingExecs.Remove (execId);
-					}
 				}
+			}
 
-			entity.StopPolling ();
-			destroyedRoom?.StopPolling ();
+		entity.StopPolling ();
+		destroyedRoom?.StopPolling ();
 
-			// Deregister the shade (and destroyed room if it had no members left).
-			var toRemove = new List<string> { entity.ControllerId };
-			if (destroyedRoom != null)
-				toRemove.Add (destroyedRoom.ControllerId);
-			UpdateSubControllers (null, [.. toRemove]);
+		// Deregister the shade (and destroyed room if it had no members left).
+		var toRemove = new List<string> { entity.ControllerId };
+		if (destroyedRoom != null)
+			toRemove.Add (destroyedRoom.ControllerId);
+		UpdateSubControllers (null, [.. toRemove]);
 
-			// Register a newly created room (only happens if it didn't exist before deletion).
-			if (newlyCreatedRoom != null)
-				{
-				UpdateSubControllers ([new ConfigurableDriverEntity (newlyCreatedRoom.ControllerId, newlyCreatedRoom, null)], null);
-				newlyCreatedRoom.StartPolling (_workQueue);
-				}
+		// Register a newly created room (only happens if it didn't exist before deletion).
+		if (newlyCreatedRoom != null)
+			{
+			UpdateSubControllers ([new ConfigurableDriverEntity (newlyCreatedRoom.ControllerId, newlyCreatedRoom, null)], null);
+			newlyCreatedRoom.StartPolling (_workQueue);
+			}
 
-			// Dispose after the framework has deregistered the sub-controller.
-			(entity as IDisposable)?.Dispose ();
+		// Dispose after the framework has deregistered the sub-controller.
+		(entity as IDisposable)?.Dispose ();
 
 		ManagedDevices = managedDevicesCopy;
 		NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
@@ -1588,20 +1750,23 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			var safeId = MakeSafeControllerId (url);
 			var isOneWay = url.StartsWith ("rts://", StringComparison.OrdinalIgnoreCase)
 					|| device.Protocol == Protocol.Rts;
-				var hasMyCommand = device.Definition?.Commands
-					.Any (c => string.Equals (c.CommandName, "my", StringComparison.OrdinalIgnoreCase))
-					?? false;
-				var entity = new OverkizShadeEntity (
-					controllerId: safeId,
-					deviceUrl: url,
-					deviceLabel: NormalizeLabel (device.Label) ?? string.Empty,
-					isOneWay: isOneWay,
-					hasMyCommand: hasMyCommand,
-					sendCommand: cmd => SendDeviceCommand (url, cmd),
-					sendCommandWithParams: (cmd, p) => SendDeviceCommand (url, cmd, p),
-					driverDataDirectoryPath: _args.DriverDataDirectoryPath,
-					logger: _logger,
-					resources: _resources);
+			var hasMyCommand = device.Definition?.Commands
+				.Any (c => string.Equals (c.CommandName, "my", StringComparison.OrdinalIgnoreCase))
+				?? false;
+			var apiLabel = NormalizeLabel (device.Label) ?? string.Empty;
+			_ = _shadeDisplayNames.TryGetValue (apiLabel, out string displayName);
+			var entity = new OverkizShadeEntity (
+				controllerId: safeId,
+				deviceUrl: url,
+				deviceLabel: apiLabel,
+				displayName: displayName,
+				isOneWay: isOneWay,
+				hasMyCommand: hasMyCommand,
+				sendCommand: cmd => SendDeviceCommand (url, cmd),
+				sendCommandWithParams: (cmd, p) => SendDeviceCommand (url, cmd, p),
+				driverDataDirectoryPath: _args.DriverDataDirectoryPath,
+				logger: _logger,
+				resources: _resources);
 			Log ("Shade constructed: controllerId=" + safeId + " isOneWay=" + isOneWay + " hasMyCommand=" + hasMyCommand
 				+ " definitionNull=" + (device.Definition == null)
 				+ " commandCount=" + (device.Definition?.Commands?.Count ?? -1)
