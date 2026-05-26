@@ -226,6 +226,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		DriverImplementationResources resources)
 		: base (DriverController.RootControllerId)
 		{
+		Log ("Constructor START");
 		_logger = args.Logger;
 		_args = args;
 		_resources = resources;
@@ -269,7 +270,71 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 		// StatusChanged fires in the live service context when the driver reaches Running state.
 		// Use it to restore cached sub-controllers so the framework sees them in the correct context.
-		ConfigurationController.StatusChanged += OnConfigurationStatusChanged;
+		Log ("Constructor: subscribing to StatusChanged event");
+		ConfigurationController.StatusChanged += (sender, e) =>
+			{
+			Log ("StatusChanged event handler FIRED in instance");
+			OnConfigurationStatusChanged (sender, e);
+			};
+
+		// Also try PropertyChanged to see if ANY events fire
+		if (ConfigurationController is System.ComponentModel.INotifyPropertyChanged npc)
+			{
+			Log ("Constructor: subscribing to PropertyChanged");
+			npc.PropertyChanged += (s, e) => Log ("PropertyChanged event: " + e.PropertyName);
+			}
+
+		// CRITICAL: For platform drivers, ApplyConfigurationItems never fires in the live instance.
+		// The orphaned service does discovery and populates _entities, but its UpdateSubControllers
+		// calls are ignored by the framework. Only the live instance's UpdateSubControllers works.
+		// Solution: wait for THIS instance to reach Running status, then re-register entities.
+		Log ("Constructor: scheduling registration from live instance when Running");
+		_ = Task.Run (async () =>
+			{
+			// Poll until this instance reaches Running status
+			while (ConfigurationController.GetStatus () != Crestron.DeviceDrivers.EntityModel.Data.DriverControllerStatus.Running)
+				{
+				await Task.Delay (100);
+				}
+
+			Log ("Constructor background: platform is Running, checking for entities");
+
+			// Give orphaned service a moment to finish if it's still discovering
+			await Task.Delay (1000);
+
+			List<ConfigurableDriverEntity> controllers;
+			Dictionary<string, PlatformManagedDevice> managedDevices;
+			lock (_entitiesLock)
+				{
+				if (_entities.Count == 0)
+					{
+					Log ("Constructor background: no entities found yet");
+					return;
+					}
+
+				controllers = new List<ConfigurableDriverEntity> ();
+				managedDevices = new Dictionary<string, PlatformManagedDevice> ();
+				foreach (var kv in _entities)
+					{
+					var entity = kv.Value;
+					controllers.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
+					// Reconstruct managed device info (we don't have UxCategory/UiClass here, use placeholder)
+					managedDevices[entity.ControllerId] = new PlatformManagedDevice (
+						DeviceUxCategory.Shade,
+						entity.ControllerId,
+						"Somfy / Overkiz",
+						"Shade",
+						null);
+					}
+				}
+
+			Log ("Constructor background: registering " + controllers.Count + " entities from live instance");
+			UpdateSubControllers (controllers, null);
+			ManagedDevices = managedDevices;
+			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+			Log ("Constructor background: registration complete");
+			});
+		Log ("Constructor END");
 		}
 
 	public override void Dispose ()
@@ -303,7 +368,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	private void OnConfigurationStatusChanged (object sender, EventArgs e)
 		{
-		if (ConfigurationController.GetStatus () != Crestron.DeviceDrivers.EntityModel.Data.DriverControllerStatus.Running)
+		var status = ConfigurationController.GetStatus ();
+		Log ("StatusChanged event fired: status=" + status);
+		if (status != Crestron.DeviceDrivers.EntityModel.Data.DriverControllerStatus.Running)
 			return;
 		Log ("StatusChanged→Running: restoring from cache if empty");
 		RestoreFromCacheIfEmpty ();
@@ -362,23 +429,26 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					_shadeDisplayNamesRaw != _appliedShadeDisplayNames;
 
 				bool shouldConnect;
-				lock (_connectLock)
-					shouldConnect = connectionChanged || !_connectInFlight;
+					lock (_connectLock)
+						shouldConnect = connectionChanged || !_connectInFlight;
 
-				if (shouldConnect)
-					{
-					_appliedUsername = _cloudUsername;
-					_appliedPassword = _cloudPassword;
-					_appliedServer = _cloudServer;
-					_appliedIp = _gatewayIp;
-					_appliedToken = _localToken;
-					_appliedRoomGroups = _roomGroupsRaw;
-					_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
-					_roomGroups = ParseRoomGroups (_roomGroupsRaw);
-					_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
-					RestoreFromCacheIfEmpty ();
-					Connect ();
-					}
+					Log ("ApplyConfigurationItems: shouldConnect=" + shouldConnect + " connectionChanged=" + connectionChanged + " connectInFlight=" + _connectInFlight);
+
+						if (shouldConnect)
+							{
+							_appliedUsername = _cloudUsername;
+							_appliedPassword = _cloudPassword;
+							_appliedServer = _cloudServer;
+							_appliedIp = _gatewayIp;
+							_appliedToken = _localToken;
+							_appliedRoomGroups = _roomGroupsRaw;
+							_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
+							_roomGroups = ParseRoomGroups (_roomGroupsRaw);
+							_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
+							RestoreFromCacheIfEmpty ();
+							Connect ();
+							Log ("ApplyConfigurationItems: RestoreFromCache and Connect called");
+							}
 				else if (displayChanged)
 					{
 					_appliedRoomGroups = _roomGroupsRaw;
