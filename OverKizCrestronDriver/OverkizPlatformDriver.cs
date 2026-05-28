@@ -1217,16 +1217,14 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			{
 			ct.ThrowIfCancellationRequested ();
 
-			// Publish the platform's managed-device dictionary first.
-			// The framework/touchscreens should see the child IDs and metadata
-			// at the time the subcontrollers are added.
+			// Register child controllers first, then publish managed devices,
+			// to align reload discovery ordering with DeviceCreated visibility path.
+			UpdateSubControllers (controllersToAdd, null);
+
 			ManagedDevices = managedDevicesCopy;
 			NotifyPropertyChanged (
 				"platform:managedDevices",
 				CreateValueForEntries (ManagedDevices));
-
-			// Now register the actual child controllers.
-			UpdateSubControllers (controllersToAdd, null);
 
 			foreach (ConfigurableDriverEntity controller in controllersToAdd)
 				{
@@ -1689,8 +1687,6 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			if (entity is OverkizShadeEntity shadeEntity)
 				{
 				shadeEntity.PushInitialState ();
-				shadeEntity.ForcePublishOnlineReadyTrue ();
-				shadeEntity.ForceOnlineReadyEdge ();
 				}
 
 			entity.StartPolling (_workQueue);
