@@ -39,7 +39,7 @@
   </PropertyGroup>
 
   <!-- BumpDriverVersion: increments the 4th component of DriverVersion on every Debug build -->
-  <Target Name="BumpDriverVersion" BeforeTargets="CoreCompile">
+  <Target Name="BumpDriverVersion" BeforeTargets="BeforeBuild">
 	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\BumpDriverVersion.ps1&quot; -ManifestPath &quot;$(MSBuildProjectDirectory)\Shade_Overkiz_IP_V2.json&quot; -Configuration &quot;$(Configuration)&quot;" />
   </Target>
 

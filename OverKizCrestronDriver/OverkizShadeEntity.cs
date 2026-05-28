@@ -43,9 +43,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		get;
 		}
 
-	// Set once the framework has commissioned the entity
-	// a framework thread after commissioning completes).
-	private int _frameworkReady;
+	private string _deviceLabel;
 
 	private void Log (string msg) =>
 		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
@@ -70,12 +68,40 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 	public void SetOnline (bool online)
 		{
-		Log ("SetOnline(" + online + ") called; current=" + OnlineIndicatorIsOnline + " frameworkReady=" + _frameworkReady);
-		if (OnlineIndicatorIsOnline == online)
-			return;
+		Log ("SetOnline(" + online + ") called; current online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
+
+		bool changed = false;
+
+		if (OnlineIndicatorIsOnline != online)
+			{
+			OnlineIndicatorIsOnline = online;
+			NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (online));
+			Log ("SetOnline: onlineIndicator:isOnline -> " + online);
+			changed = true;
+			}
+
+		if (ReadyIndicatorIsReady != online)
+			{
+			ReadyIndicatorIsReady = online;
+			NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (online));
+			Log ("SetOnline: readyIndicator:isReady -> " + online);
+			changed = true;
+			}
+
+		if (!changed)
+			Log ("SetOnline: no change needed");
+		}
+
+	/// <summary>
+	/// Sets the initial online/ready state BEFORE UpdateSubControllers() registration.
+	/// Does NOT call NotifyPropertyChanged() — this just makes the property values
+	/// correct for the framework's initial GetState() snapshot at registration time.
+	/// </summary>
+	internal void SetInitialOnlineState (bool online)
+		{
+		ReadyIndicatorIsReady = online;
 		OnlineIndicatorIsOnline = online;
-		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (online));
-		Log ("SetOnline: NotifyPropertyChanged sent");
+		Log ("SetInitialOnlineState: ready=" + online + " online=" + online + " (no notifications)");
 		}
 
 	/// <summary>
@@ -87,6 +113,50 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		if (IsOneWay)
 			return;
 		SetOnline (available);
+		}
+
+	/// <summary>
+	/// Push initial ready/online state to the framework immediately after UpdateSubControllers.
+	/// This is needed because ValuesChanged may not fire for dynamically-discovered entities
+	/// until they're reloaded from persisted state.
+	/// NOTE: We do NOT set _frameworkReady here - that must wait for ValuesChanged to fire.
+	/// </summary>
+	internal void PushInitialState ()
+		{
+		Log ("PushInitialState: pushing ready=" + ReadyIndicatorIsReady + " online=" + OnlineIndicatorIsOnline);
+
+		// Push all initial properties WITHOUT setting _frameworkReady
+		// This allows ValuesChanged to fire later and complete the initialization
+		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
+		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (OnlineIndicatorIsOnline));
+		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
+		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
+		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
+
+		if (_uiDefinition != null)
+			{
+			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
+			if (uiValue.HasValue)
+				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
+			}
+
+		Log ("PushInitialState: notifications sent");
+		}
+
+	internal void ForcePublishOnlineReadyTrue ()
+		{
+		OnlineIndicatorIsOnline = true;
+		ReadyIndicatorIsReady = true;
+		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (true));
+		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (true));
+		Log ("ForcePublishOnlineReadyTrue: published online=true ready=true");
+		}
+
+	internal void ForceOnlineReadyEdge ()
+		{
+		SetOnline (false);
+		SetOnline (true);
+		Log ("ForceOnlineReadyEdge: published false->true edge");
 		}
 
 	/// <inheritdoc/>
@@ -111,33 +181,20 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			return;
 
 		ApiLabel = label;
-		var effectiveLabel = !string.IsNullOrEmpty (_displayNameOverride) ? _displayNameOverride : ApiLabel;
-		if (string.Equals (DeviceLabel, effectiveLabel, StringComparison.Ordinal))
-			return;
+		_deviceLabel = _displayNameOverride ?? ApiLabel;
 
-		DeviceLabel = effectiveLabel;
-
-		// Only notify if the framework has commissioned the entity.
-		if (Volatile.Read (ref _frameworkReady) != 0)
-			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-
-		Log ("UpdateLabel: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
+		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (_deviceLabel));
+		Log ("UpdateLabel: apiLabel='" + ApiLabel + "' deviceLabel='" + _deviceLabel + "'");
 		}
 
 	/// <summary>Updates the display-name override and refreshes <see cref="DeviceLabel"/>.</summary>
 	public void UpdateDisplayName (string displayName)
 		{
 		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
-		var effectiveLabel = _displayNameOverride ?? ApiLabel;
-		if (string.Equals (DeviceLabel, effectiveLabel, StringComparison.Ordinal))
-			return;
+		_deviceLabel = _displayNameOverride ?? ApiLabel;
 
-		DeviceLabel = effectiveLabel;
-
-		if (Volatile.Read (ref _frameworkReady) != 0)
-			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-
-		Log ("UpdateDisplayName: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
+		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (_deviceLabel));
+		Log ("UpdateDisplayName: apiLabel='" + ApiLabel + "' deviceLabel='" + _deviceLabel + "'");
 		}
 
 	/// <inheritdoc/>
@@ -179,31 +236,31 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	private Timer _pollTimer;
 	private OverkizWorkQueue _queue;
 
+	private static int _startPollingCallCount = 0;
+
 	public void StartPolling (OverkizWorkQueue queue)
 		{
-		Log ("StartPolling called; isOneWay=" + IsOneWay + " frameworkReady=" + _frameworkReady);
-		Volatile.Write (ref _frameworkReady, 1);
-		if (!IsOneWay)
+		int callNumber = System.Threading.Interlocked.Increment (ref _startPollingCallCount);
+		try
 			{
-			_queue = queue;
-			StopPolling ();
-			_pollTimer = new Timer (PollCallback, null, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
-			}
+			Log (">>> StartPolling ENTRY #" + callNumber + "; this=" + this.GetType().FullName + " controllerId=" + ControllerId);
+			Log (">>> StartPolling ENTRY; isOneWay=" + IsOneWay);
+			if (!IsOneWay)
+				{
+				_queue = queue;
+				StopPolling ();
+				_pollTimer = new Timer (PollCallback, null, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
+				}
 
-		// Push initial property values so the framework/touchscreen renders correctly.
-		if (_uiDefinition != null)
+			Log (">>> StartPolling: calling SetOnline(true)");
+			SetOnline (true);
+			Log (">>> StartPolling EXIT #" + callNumber);
+			}
+		catch (Exception ex)
 			{
-			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
-			if (uiValue.HasValue)
-				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
+			Log (">>> StartPolling EXCEPTION #" + callNumber + ": " + ex.ToString ());
+			throw;
 			}
-
-		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
-		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
-		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
-
-		SetOnline (true);
 		}
 
 	public void StopPolling ()
@@ -242,10 +299,10 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	/// <summary>The raw Overkiz API label for this device — used for room-group matching and identity. Never overridden by display-name config.</summary>
 	internal string ApiLabel { get; private set; }
 
-	/// <summary>Human-readable label of the device from the Overkiz API (the only name the driver ever knows).</summary>
+	/// <summary>Human-readable label of the device from the Overkiz API (with optional display-name override from ShadeDisplayNames config).</summary>
 	[EntityProperty (Id = "deviceLabel", FriendlyName = "Device Label")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string DeviceLabel { get; private set; }
+	public string DeviceLabel => _deviceLabel;
 
 	/// <summary>
 	/// True when the shade supports position feedback (two-way).
@@ -324,7 +381,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		_deviceUrl = deviceUrl ?? throw new ArgumentNullException (nameof (deviceUrl));
 		ApiLabel            = deviceLabel ?? string.Empty;
 		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
-		DeviceLabel         = _displayNameOverride ?? ApiLabel;
+		_deviceLabel        = _displayNameOverride ?? ApiLabel;
 		IsOneWay = isOneWay;
 		HasMyCommand = hasMyCommand;
 		_sendCommand = sendCommand ?? throw new ArgumentNullException (nameof (sendCommand));
@@ -342,19 +399,47 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			resources.InitLogger,
 			LogEntryLevel.Error);
 		Log ("UiDefinition: loaded=" + (_uiDefinition != null));
-		AddProperty (this, UiDefinitionProperty.Name, _uiDefinition);
+		try
+			{
+			Log (">>> About to AddProperty UiDefinition");
+			AddProperty (this, UiDefinitionProperty.Name, _uiDefinition);
+			Log (">>> AddProperty UiDefinition succeeded");
+			}
+		catch (Exception ex)
+			{
+			Log (">>> AddProperty UiDefinition FAILED: " + ex.Message);
+			}
 
 		// Wire up the extension command executors so that the Crestron Home extension
 		// UI can invoke commands and set property values on this entity.
-		var doCommand = new ExtensionDoCommandExecutor (GetCommand, resources.Logger);
-		AddCommand (this, ExtensionDoCommandExecutor.CommandName, doCommand);
+		try
+			{
+			Log (">>> About to create ExtensionDoCommandExecutor");
+			var doCommand = new ExtensionDoCommandExecutor (GetCommand, resources.Logger);
+			AddCommand (this, ExtensionDoCommandExecutor.CommandName, doCommand);
+			Log (">>> ExtensionDoCommandExecutor succeeded");
+			}
+		catch (Exception ex)
+			{
+			Log (">>> ExtensionDoCommandExecutor FAILED: " + ex.Message);
+			}
 
-		var setPropertyValue = new ExtensionSetPropertyValueExecutor (GetCommand, resources.Logger);
-		AddCommand (this, ExtensionSetPropertyValueExecutor.CommandName, setPropertyValue);
+		try
+			{
+			Log (">>> About to create ExtensionSetPropertyValueExecutor");
+			var setPropertyValue = new ExtensionSetPropertyValueExecutor (GetCommand, resources.Logger);
+			AddCommand (this, ExtensionSetPropertyValueExecutor.CommandName, setPropertyValue);
+			Log (">>> ExtensionSetPropertyValueExecutor succeeded");
+			}
+		catch (Exception ex)
+			{
+			Log (">>> ExtensionSetPropertyValueExecutor FAILED: " + ex.Message);
+			}
 
-		// Child is ready the moment it is constructed — it will go online when
-		// the platform's gateway connection is established.
-		ReadyIndicatorIsReady = true;
+		// Both indicators start false; they will be set true BEFORE UpdateSubControllers()
+		// via SetInitialOnlineState() so the framework's initial GetState() sees them as ready.
+		ReadyIndicatorIsReady = false;
+		OnlineIndicatorIsOnline = false;
 		}
 
 	// ── State update ──────────────────────────────────────────────────────

@@ -47,21 +47,6 @@ internal sealed class RoomMemberConfig (string apiLabel, string displayName)
 	}
 
 /// <summary>
-/// Minimal per-device record persisted to disk so sub-controllers can be
-/// re-registered synchronously on the next service context before async
-/// discovery has a chance to complete.
-/// </summary>
-internal sealed class CachedDevice
-	{
-	public string Url           { get; set; }
-	public string Label         { get; set; }
-	public string UiClassString { get; set; }
-	public bool   IsOneWay      { get; set; }
-	public bool   HasMyCommand  { get; set; }
-	public int    UxCategory    { get; set; }
-	}
-
-/// <summary>
 /// SDK V2 Platform Driver root entity.
 /// Connects to an Overkiz-compatible gateway (cloud or local), discovers all
 /// controllable shade devices, and exposes them as dynamic child entities
@@ -83,10 +68,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private Dictionary<string, RoomGroupEntry> _roomGroups = [];
 
 	/// <summary>Optional per-shade display name overrides: normalised API label → display name.</summary>
-	private Dictionary<string, string> _shadeDisplayNames = new(StringComparer.OrdinalIgnoreCase);
+	private Dictionary<string, string> _shadeDisplayNames = new (StringComparer.OrdinalIgnoreCase);
 
 	private bool IsLocalMode =>
-		!string.IsNullOrEmpty (_gatewayIp) && !string.IsNullOrEmpty (_localToken);
+		!string.IsNullOrWhiteSpace (_gatewayIp) && !string.IsNullOrWhiteSpace (_localToken);
 
 	// ── Last-applied config snapshot (used to suppress redundant reconnects) ─
 
@@ -191,6 +176,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	private CancellationTokenSource _connectCts;
 	private bool _connectInFlight;
+	private bool _hasConnectedWithAppliedConfig;
 	private readonly object _connectLock = new ();
 
 	// ── Registration gate (signals ApplyConfigurationItems when UpdateSubControllers is done) ──
@@ -268,72 +254,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			null,
 			null);
 
-		// StatusChanged fires in the live service context when the driver reaches Running state.
-		// Use it to restore cached sub-controllers so the framework sees them in the correct context.
-		Log ("Constructor: subscribing to StatusChanged event");
-		ConfigurationController.StatusChanged += (sender, e) =>
-			{
-			Log ("StatusChanged event handler FIRED in instance");
-			OnConfigurationStatusChanged (sender, e);
-			};
+		ManagedDevices = new Dictionary<string, PlatformManagedDevice> ();
 
-		// Also try PropertyChanged to see if ANY events fire
-		if (ConfigurationController is System.ComponentModel.INotifyPropertyChanged npc)
-			{
-			Log ("Constructor: subscribing to PropertyChanged");
-			npc.PropertyChanged += (s, e) => Log ("PropertyChanged event: " + e.PropertyName);
-			}
-
-		// CRITICAL: For platform drivers, ApplyConfigurationItems never fires in the live instance.
-		// The orphaned service does discovery and populates _entities, but its UpdateSubControllers
-		// calls are ignored by the framework. Only the live instance's UpdateSubControllers works.
-		// Solution: wait for THIS instance to reach Running status, then re-register entities.
-		Log ("Constructor: scheduling registration from live instance when Running");
-		_ = Task.Run (async () =>
-			{
-			// Poll until this instance reaches Running status
-			while (ConfigurationController.GetStatus () != Crestron.DeviceDrivers.EntityModel.Data.DriverControllerStatus.Running)
-				{
-				await Task.Delay (100);
-				}
-
-			Log ("Constructor background: platform is Running, checking for entities");
-
-			// Give orphaned service a moment to finish if it's still discovering
-			await Task.Delay (1000);
-
-			List<ConfigurableDriverEntity> controllers;
-			Dictionary<string, PlatformManagedDevice> managedDevices;
-			lock (_entitiesLock)
-				{
-				if (_entities.Count == 0)
-					{
-					Log ("Constructor background: no entities found yet");
-					return;
-					}
-
-				controllers = new List<ConfigurableDriverEntity> ();
-				managedDevices = new Dictionary<string, PlatformManagedDevice> ();
-				foreach (var kv in _entities)
-					{
-					var entity = kv.Value;
-					controllers.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
-					// Reconstruct managed device info (we don't have UxCategory/UiClass here, use placeholder)
-					managedDevices[entity.ControllerId] = new PlatformManagedDevice (
-						DeviceUxCategory.Shade,
-						entity.ControllerId,
-						"Somfy / Overkiz",
-						"Shade",
-						null);
-					}
-				}
-
-			Log ("Constructor background: registering " + controllers.Count + " entities from live instance");
-			UpdateSubControllers (controllers, null);
-			ManagedDevices = managedDevices;
-			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
-			Log ("Constructor background: registration complete");
-			});
 		Log ("Constructor END");
 		}
 
@@ -342,6 +264,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (_disposed)
 			return;
 		_disposed = true;
+
 		lock (_connectLock)
 			{
 			_connectCts?.Cancel ();
@@ -366,14 +289,44 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	// ── Private: configuration callback ──────────────────────────────────
 
-	private void OnConfigurationStatusChanged (object sender, EventArgs e)
+	private ConfigurationItemErrors ValidateConnectionConfiguration ()
 		{
-		var status = ConfigurationController.GetStatus ();
-		Log ("StatusChanged event fired: status=" + status);
-		if (status != Crestron.DeviceDrivers.EntityModel.Data.DriverControllerStatus.Running)
-			return;
-		Log ("StatusChanged→Running: restoring from cache if empty");
-		RestoreFromCacheIfEmpty ();
+		var errors = new Dictionary<string, string> ();
+
+		bool hasGatewayIp = !string.IsNullOrWhiteSpace (_gatewayIp);
+		bool hasLocalToken = !string.IsNullOrWhiteSpace (_localToken);
+		bool hasAnyLocal = hasGatewayIp || hasLocalToken;
+		bool hasCompleteLocal = hasGatewayIp && hasLocalToken;
+
+		bool hasCloudUsername = !string.IsNullOrWhiteSpace (_cloudUsername);
+		bool hasCloudPassword = !string.IsNullOrWhiteSpace (_cloudPassword);
+		bool hasCompleteCloud = hasCloudUsername && hasCloudPassword;
+
+		// Local mode wins if the user supplied either local field.
+		// Do not silently fall back to cloud if local config is partial.
+		if (hasAnyLocal)
+			{
+			if (!hasGatewayIp)
+				errors["GatewayIP"] = "Gateway IP is required when using local mode.";
+
+			if (!hasLocalToken)
+				errors["LocalToken"] = "Local token is required when using local mode.";
+			}
+		else if (!hasCompleteCloud)
+			{
+			if (!hasCloudUsername)
+				errors["CloudUsername"] = "Cloud username is required when local mode is not configured.";
+
+			if (!hasCloudPassword)
+				errors["CloudPassword"] = "Cloud password is required when local mode is not configured.";
+			}
+
+		if (errors.Count == 0)
+			return null;
+
+		return new ConfigurationItemErrors (
+			errors,
+			"Enter either both local gateway values, or both cloud username and password.");
 		}
 
 	private ConfigurationItemErrors ApplyConfigurationItems (
@@ -410,13 +363,17 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				if (values.TryGetValue ("ShadeDisplayNames", out v) && v.HasValue)
 					_shadeDisplayNamesRaw = v.Value.GetValue<string> () ?? _shadeDisplayNamesRaw;
 
-				SetReady (true);
+				ConfigurationItemErrors configErrors = ValidateConnectionConfiguration ();
+				if (configErrors != null)
+					{
+					SetReady (false);
+					SetOnline (false);
+					return configErrors;
+					}
 
-				// Avoid double-init: the SDK fires ApplyConfigurationItems more than
-				// once on startup with identical values, and both calls arrive before
-				// the async connect task has had a chance to complete (so an
-				// OnlineIndicatorIsOnline check would let both through).  Guard with
-				// an in-flight flag instead.
+				_roomGroups = ParseRoomGroups (_roomGroupsRaw);
+				_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
+
 				var connectionChanged =
 					_cloudUsername != _appliedUsername ||
 					_cloudPassword != _appliedPassword ||
@@ -429,37 +386,50 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					_shadeDisplayNamesRaw != _appliedShadeDisplayNames;
 
 				bool shouldConnect;
-					lock (_connectLock)
-						shouldConnect = connectionChanged || !_connectInFlight;
+				lock (_connectLock)
+					{
+					// Same config while a connect is already running: do nothing.
+					if (_connectInFlight && !connectionChanged)
+						shouldConnect = false;
+					else
+						shouldConnect =
+							connectionChanged ||
+							!_hasConnectedWithAppliedConfig ||
+							!OnlineIndicatorIsOnline;
+					}
 
-					Log ("ApplyConfigurationItems: shouldConnect=" + shouldConnect + " connectionChanged=" + connectionChanged + " connectInFlight=" + _connectInFlight);
+				Log (
+					"ApplyConfigurationItems: shouldConnect=" + shouldConnect +
+					" connectionChanged=" + connectionChanged +
+					" displayChanged=" + displayChanged +
+					" connectInFlight=" + _connectInFlight +
+					" hasConnected=" + _hasConnectedWithAppliedConfig);
 
-						if (shouldConnect)
-							{
-							_appliedUsername = _cloudUsername;
-							_appliedPassword = _cloudPassword;
-							_appliedServer = _cloudServer;
-							_appliedIp = _gatewayIp;
-							_appliedToken = _localToken;
-							_appliedRoomGroups = _roomGroupsRaw;
-							_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
-							_roomGroups = ParseRoomGroups (_roomGroupsRaw);
-							_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
-							RestoreFromCacheIfEmpty ();
-							Connect ();
-							Log ("ApplyConfigurationItems: RestoreFromCache and Connect called");
-							}
+				if (shouldConnect)
+					{
+					SetReady (true);
+
+					_appliedUsername = _cloudUsername;
+					_appliedPassword = _cloudPassword;
+					_appliedServer = _cloudServer;
+					_appliedIp = _gatewayIp;
+					_appliedToken = _localToken;
+					_appliedRoomGroups = _roomGroupsRaw;
+					_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
+
+					Connect ();
+					Log ("ApplyConfigurationItems: Connect called");
+					}
 				else if (displayChanged)
 					{
 					_appliedRoomGroups = _roomGroupsRaw;
 					_appliedShadeDisplayNames = _shadeDisplayNamesRaw;
-					_roomGroups = ParseRoomGroups (_roomGroupsRaw);
-					_shadeDisplayNames = ParseShadeDisplayNames (_shadeDisplayNamesRaw);
+
 					ApplyDisplayConfig ();
 					}
 				else
 					{
-					Log ("ApplyConfigurationItems: connect already in-flight with same config – skipping");
+					Log ("ApplyConfigurationItems: same config already applied – skipping");
 					}
 
 				return null;
@@ -495,43 +465,57 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				try
 					{
 					Log ("Connect task started; isLocalMode=" + IsLocalMode);
+
+					cts.Token.ThrowIfCancellationRequested ();
+
+					// Stop event loop and dispose old client, but preserve children
+					StopEventLoop ();
+					DisposeClient ();
+
 					cts.Token.ThrowIfCancellationRequested ();
 					await ConnectClientAsync ().ConfigureAwait (false);
 
 					cts.Token.ThrowIfCancellationRequested ();
 					SetOnline (true);
-
-					bool hasEntities;
-					lock (_entitiesLock)
-						hasEntities = _entities.Count > 0;
+					SetReady (true);
 
 					cts.Token.ThrowIfCancellationRequested ();
-					if (!hasEntities)
-						await DiscoverDevicesAsync (cts.Token).ConfigureAwait (false);
-					else
-						RegisterEntitiesWithFramework ();
+					await DiscoverDevicesAsync (cts.Token).ConfigureAwait (false);
 
-					// Signal ApplyConfigurationItems that registration is done.
-					tcs.TrySetResult (true);
+					_ = tcs.TrySetResult (true);
 
 					cts.Token.ThrowIfCancellationRequested ();
-					lock (_entitiesLock)
-						{
-						foreach (IOverkizEntity e in _entities.Values)
-							e.StartPolling (_workQueue);
-						}
 
+					StartAllChildPolling ();
 					StartEventLoop ();
+
+					lock (_connectLock)
+						{
+						if (ReferenceEquals (cts, _connectCts))
+							_hasConnectedWithAppliedConfig = true;
+						}
 					}
 				catch (OperationCanceledException)
 					{
-					tcs.TrySetCanceled ();
+					_ = tcs.TrySetCanceled ();
 					Log ("Connect superseded by newer request");
 					}
 				catch (Exception ex)
 					{
-					tcs.TrySetException (ex);
-					Log ("Connect failed: " + ex.ToString ());
+					_ = tcs.TrySetException (ex);
+
+					SetOnline (false);
+					SetReady (false);
+					StopEventLoop ();
+					StopAllChildPolling ();
+
+					lock (_connectLock)
+						{
+						if (ReferenceEquals (cts, _connectCts))
+							_hasConnectedWithAppliedConfig = false;
+						}
+
+					Log ("Connect failed: " + ex);
 					}
 				finally
 					{
@@ -544,6 +528,38 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 						}
 					}
 			});
+		}
+
+	private void StopAllChildPolling ()
+		{
+		lock (_entitiesLock)
+			{
+			foreach (IOverkizEntity e in _entities.Values)
+				e.StopPolling ();
+
+			foreach (OverkizRoomEntity r in _roomEntities.Values)
+				r.StopPolling ();
+			}
+		}
+
+	private void StartAllChildPolling ()
+		{
+		lock (_entitiesLock)
+			{
+			foreach (IOverkizEntity e in _entities.Values)
+				e.StartPolling (_workQueue);
+
+			foreach (OverkizRoomEntity r in _roomEntities.Values)
+				r.StartPolling (_workQueue);
+			}
+		}
+
+	private void PrepareForReconnect ()
+		{
+		StopEventLoop ();
+		StopAllChildPolling ();
+		DisposeClient ();
+		SetOnline (false);
 		}
 
 	private void Disconnect ()
@@ -561,6 +577,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			_connectCts?.Dispose ();
 			_connectCts = null;
 			_connectInFlight = false;
+			_hasConnectedWithAppliedConfig = false;
 			}
 
 		StopEventLoop ();
@@ -580,8 +597,6 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	private async Task ConnectClientAsync ()
 		{
-		DisposeClient ();
-
 		OverkizClient newClient;
 
 		if (IsLocalMode)
@@ -960,13 +975,24 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				}
 
 			// Rebuild room member lists in place and update room titles.
-			var managedDevices = new Dictionary<string, PlatformManagedDevice> ();
+			var managedDevices = ManagedDevices != null
+				? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
+				: new Dictionary<string, PlatformManagedDevice> ();
+
 			foreach (string placeOid in _roomEntities.Keys)
 				{
 				_ = RebuildRoomMembersLocked (placeOid, ref managedDevices, out OverkizRoomEntity room);
-				if (room != null && _roomGroups.TryGetValue (placeOid, out RoomGroupEntry grp) && !string.IsNullOrEmpty (grp.RoomDisplayName))
+
+				if (room != null &&
+					_roomGroups.TryGetValue (placeOid, out RoomGroupEntry grp) &&
+					!string.IsNullOrEmpty (grp.RoomDisplayName))
+					{
 					room.UpdateLabel (grp.RoomDisplayName);
+					}
 				}
+
+			ManagedDevices = managedDevices;
+			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 			}
 		}
 
@@ -1116,7 +1142,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		Log ("Discovered " + devices.Count + " total devices");
 
 		List<ConfigurableDriverEntity> controllersToAdd = [];
-		Dictionary<string, PlatformManagedDevice> managedDevicesCopy = [];
+		Dictionary<string, PlatformManagedDevice> managedDevicesCopy =
+			ManagedDevices != null
+				? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
+				: new Dictionary<string, PlatformManagedDevice> ();
 
 		foreach (Device device in devices)
 			{
@@ -1166,6 +1195,12 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					continue;
 
 				_entities[url] = entity;
+
+				// Set entity online BEFORE wrapping in ConfigurableDriverEntity so the
+				// framework's initial GetState() snapshot sees ready=true, online=true.
+				if (entity is OverkizShadeEntity shade)
+					shade.SetInitialOnlineState (true);
+
 				controllersToAdd.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
 				managedDevicesCopy[entity.ControllerId] = new PlatformManagedDevice (
 						entity.UxCategory,
@@ -1181,14 +1216,31 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (controllersToAdd.Count > 0)
 			{
 			ct.ThrowIfCancellationRequested ();
-			UpdateSubControllers (controllersToAdd, null);
+
+			// Publish the platform's managed-device dictionary first.
+			// The framework/touchscreens should see the child IDs and metadata
+			// at the time the subcontrollers are added.
 			ManagedDevices = managedDevicesCopy;
-			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+			NotifyPropertyChanged (
+				"platform:managedDevices",
+				CreateValueForEntries (ManagedDevices));
+
+			// Now register the actual child controllers.
+			UpdateSubControllers (controllersToAdd, null);
+
+			foreach (ConfigurableDriverEntity controller in controllersToAdd)
+				{
+				if (controller.Entity is OverkizShadeEntity shade)
+					{
+					shade.PushInitialState ();
+					}
+				}
+
 			Log ("Published " + controllersToAdd.Count + " shade(s)");
 
-			// Persist to disk so next service context can re-register synchronously.
-			lock (_entitiesLock)
-				SaveDeviceCache (_entities, ManagedDevices);
+			// Diagnostic: log what's in ManagedDevices
+			foreach (var kvp in managedDevicesCopy)
+				Log ("  ManagedDevice[" + kvp.Key + "] = Name:'" + kvp.Value.Name + "', Mfr:'" + kvp.Value.Manufacturer + "'");
 			}
 
 		// Build room groupings unconditionally — a previously-known shade may now
@@ -1282,6 +1334,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		}
 
 	/// <summary>
+	/// UNUSED. Do not call during ordinary reconnect; reconnect preserves the
+	/// existing child entities and merely restarts transport/polling.
 	/// Re-registers all already-discovered entities with the current framework
 	/// context.  Called on every subsequent <see cref="Connect"/> after the
 	/// initial discovery so that the active service context owns the children.
@@ -1357,16 +1411,18 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		const int POLL_INTERVAL_MS = 2_000;
 		const int RETRY_DELAY_MS = 10_000;
 
+		OverkizClient eventClient;
+		lock (_clientLock)
+			eventClient = _client;
+
+		if (eventClient == null)
+			return;
+
 		Log ("Event loop: registering listener");
+
 		try
 			{
-			OverkizClient client;
-			lock (_clientLock)
-				client = _client;
-			if (client == null)
-				return;
-
-			await client.RegisterEventListener ().ConfigureAwait (false);
+			await eventClient.RegisterEventListener ().ConfigureAwait (false);
 			Log ("Event loop: listener registered");
 
 			while (!ct.IsCancellationRequested)
@@ -1375,18 +1431,17 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					{
 					await Task.Delay (POLL_INTERVAL_MS, ct).ConfigureAwait (false);
 
-					IReadOnlyList<OverKizApi.Models.EventObject> events;
-					lock (_clientLock)
-						client = _client;
-					if (client == null || ct.IsCancellationRequested)
+					if (ct.IsCancellationRequested)
 						break;
 
-					events = await client.FetchEvents ().ConfigureAwait (false);
+					IReadOnlyList<OverKizApi.Models.EventObject> events =
+						await eventClient.FetchEvents ().ConfigureAwait (false);
 
 					foreach (OverKizApi.Models.EventObject ev in events)
 						{
 						if (ct.IsCancellationRequested)
 							break;
+
 						DispatchEvent (ev);
 						}
 					}
@@ -1397,6 +1452,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				catch (Exception ex)
 					{
 					Log ("Event loop: fetch error – " + ex.Message + "; retrying in " + RETRY_DELAY_MS + "ms");
+
 					try
 						{
 						await Task.Delay (RETRY_DELAY_MS, ct).ConfigureAwait (false);
@@ -1413,17 +1469,13 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			}
 		catch (Exception ex)
 			{
-			Log ("Event loop: fatal error – " + ex.ToString ());
+			Log ("Event loop: fatal error – " + ex);
 			}
 		finally
 			{
 			try
 				{
-				OverkizClient client;
-				lock (_clientLock)
-					client = _client;
-				if (client != null)
-					await client.UnregisterEventListener ().ConfigureAwait (false);
+				await eventClient.UnregisterEventListener ().ConfigureAwait (false);
 				Log ("Event loop: listener unregistered");
 				}
 			catch (Exception ex)
@@ -1595,6 +1647,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					return;
 				_entities[ev.DeviceUrl] = entity;
 
+				// Set entity online BEFORE wrapping in ConfigurableDriverEntity so the
+				// framework's initial GetState() snapshot sees ready=true, online=true.
+				if (entity is OverkizShadeEntity shade)
+					shade.SetInitialOnlineState (true);
+
 				// Determine if this shade belongs to any configured room group by label.
 				var roomName = FindRoomGroupForLabel (label);
 				if (roomName != null)
@@ -1625,7 +1682,16 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			UpdateSubControllers (controllers, null);
 
 			ManagedDevices = managedDevicesCopy;
-			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+			NotifyPropertyChanged (
+				"platform:managedDevices",
+				CreateValueForEntries (ManagedDevices));
+
+			if (entity is OverkizShadeEntity shadeEntity)
+				{
+				shadeEntity.PushInitialState ();
+				shadeEntity.ForcePublishOnlineReadyTrue ();
+				shadeEntity.ForceOnlineReadyEdge ();
+				}
 
 			entity.StartPolling (_workQueue);
 			newRoomEntity?.StartPolling (_workQueue);
@@ -1941,150 +2007,5 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		}
 
 	private void Log (string message) => _logger?.Log (_args.DriverId, LogEntryLevel.Info, message);
-
-	// ── Device cache (survives service-context replacement) ───────────────
-
-	private string DeviceCachePath =>
-		Path.Combine (_args.DriverDataDirectoryPath ?? "/tmp", "overkiz_device_cache.txt");
-
-	/// <summary>
-	/// Saves the current <see cref="_entities"/> set to disk.
-	/// Format: one line per device – pipe-separated fields.
-	/// </summary>
-	private void SaveDeviceCache (IEnumerable<KeyValuePair<string, IOverkizEntity>> entities,
-		IDictionary<string, PlatformManagedDevice> managedDevices)
-		{
-		try
-			{
-			var lines = new System.Text.StringBuilder ();
-			foreach (var kv in entities)
-				{
-				if (!(kv.Value is OverkizShadeEntity shade))
-					continue;
-				string modelStr = string.Empty;
-				int uxCat = (int)DeviceUxCategory.Shade;
-				if (managedDevices.TryGetValue (shade.ControllerId, out PlatformManagedDevice md))
-					{
-					modelStr = md.Model ?? string.Empty;
-					uxCat    = (int)md.UxCategory;
-					}
-				lines.AppendLine (string.Join ("|",
-					kv.Key,
-					shade.ApiLabel,
-					modelStr,
-					shade.IsOneWay ? "1" : "0",
-					shade.HasMyCommand ? "1" : "0",
-					uxCat.ToString ()));
-				}
-			File.WriteAllText (DeviceCachePath, lines.ToString ());
-			Log ("Device cache saved: " + DeviceCachePath);
-			}
-		catch (Exception ex)
-			{
-			Log ("Device cache save failed: " + ex.Message);
-			}
-		}
-
-	/// <summary>
-	/// Loads cached devices from disk and returns them, or an empty list on any error.
-	/// </summary>
-	private List<CachedDevice> LoadDeviceCache ()
-		{
-		var result = new List<CachedDevice> ();
-		try
-			{
-			if (!File.Exists (DeviceCachePath))
-				return result;
-			foreach (string line in File.ReadAllLines (DeviceCachePath))
-				{
-				if (string.IsNullOrWhiteSpace (line))
-					continue;
-				string[] parts = line.Split ('|');
-				if (parts.Length < 5)
-					continue;
-				result.Add (new CachedDevice
-					{
-					Url           = parts[0],
-					Label         = parts[1],
-					UiClassString = parts[2],
-					IsOneWay      = parts[3] == "1",
-					HasMyCommand  = parts[4] == "1",
-					UxCategory    = parts.Length > 5 && int.TryParse (parts[5], out int ux) ? ux : (int)DeviceUxCategory.Shade,
-					});
-				}
-			Log ("Device cache loaded: " + result.Count + " device(s)");
-			}
-		catch (Exception ex)
-			{
-			Log ("Device cache load failed: " + ex.Message);
-			}
-		return result;
-		}
-	/// <summary>
-	/// If <see cref="_entities"/> is empty, loads the device cache and synchronously
-	/// calls <see cref="UpdateSubControllers"/> so the framework sees the sub-controllers
-	/// in the current (live) service context before the async connect completes.
-	/// </summary>
-	private void RestoreFromCacheIfEmpty ()
-		{
-		bool isEmpty;
-		lock (_entitiesLock)
-			isEmpty = _entities.Count == 0;
-		if (!isEmpty)
-			{
-			Log ("RestoreFromCache: skipped — entities already populated (" + _entities.Count + ")");
-			return;
-			}
-
-		List<CachedDevice> cached = LoadDeviceCache ();
-		Log ("RestoreFromCache: cache contains " + cached.Count + " device(s)");
-		if (cached.Count == 0)
-			return;
-
-		var controllers = new List<ConfigurableDriverEntity> ();
-		var managedDevices = new Dictionary<string, PlatformManagedDevice> ();
-
-		lock (_entitiesLock)
-			{
-			foreach (CachedDevice cd in cached)
-				{
-				if (_entities.ContainsKey (cd.Url))
-					continue;
-
-				_ = _shadeDisplayNames.TryGetValue (cd.Label, out string displayName);
-				var entity = new OverkizShadeEntity (
-					controllerId:          MakeSafeControllerId (cd.Url),
-					deviceUrl:             cd.Url,
-					deviceLabel:           cd.Label,
-					displayName:           displayName,
-					isOneWay:              cd.IsOneWay,
-					hasMyCommand:          cd.HasMyCommand,
-					sendCommand:           cmd => SendDeviceCommand (cd.Url, cmd),
-					sendCommandWithParams: (cmd, p) => SendDeviceCommand (cd.Url, cmd, p),
-					driverDataDirectoryPath: _args.DriverDataDirectoryPath,
-					logger:                _logger,
-					resources:             _resources);
-
-				_entities[cd.Url] = entity;
-				controllers.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
-				managedDevices[entity.ControllerId] = new PlatformManagedDevice (
-					(DeviceUxCategory)cd.UxCategory,
-					cd.Label,
-					"Somfy / Overkiz",
-					cd.UiClassString,
-					null);
-				}
-			}
-
-		if (controllers.Count == 0)
-			return;
-
-		UpdateSubControllers (controllers, null);
-		ManagedDevices = managedDevices;
-		NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
-		Log ("Restored " + controllers.Count + " shade(s) from cache");
-		}
-
 	}
-
 
