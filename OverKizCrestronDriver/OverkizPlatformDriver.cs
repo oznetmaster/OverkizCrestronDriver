@@ -1196,11 +1196,6 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 				_entities[url] = entity;
 
-				// Set entity online BEFORE wrapping in ConfigurableDriverEntity so the
-				// framework's initial GetState() snapshot sees ready=true, online=true.
-				if (entity is OverkizShadeEntity shade)
-					shade.SetInitialOnlineState (true);
-
 				controllersToAdd.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
 				managedDevicesCopy[entity.ControllerId] = new PlatformManagedDevice (
 						entity.UxCategory,
@@ -1216,23 +1211,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (controllersToAdd.Count > 0)
 			{
 			ct.ThrowIfCancellationRequested ();
-
-			// Register child controllers first, then publish managed devices,
-			// to align reload discovery ordering with DeviceCreated visibility path.
 			UpdateSubControllers (controllersToAdd, null);
 
 			ManagedDevices = managedDevicesCopy;
-			NotifyPropertyChanged (
-				"platform:managedDevices",
-				CreateValueForEntries (ManagedDevices));
-
-			foreach (ConfigurableDriverEntity controller in controllersToAdd)
-				{
-				if (controller.Entity is OverkizShadeEntity shade)
-					{
-					shade.PushInitialState ();
-					}
-				}
+			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 
 			Log ("Published " + controllersToAdd.Count + " shade(s)");
 
@@ -1645,11 +1627,6 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					return;
 				_entities[ev.DeviceUrl] = entity;
 
-				// Set entity online BEFORE wrapping in ConfigurableDriverEntity so the
-				// framework's initial GetState() snapshot sees ready=true, online=true.
-				if (entity is OverkizShadeEntity shade)
-					shade.SetInitialOnlineState (true);
-
 				// Determine if this shade belongs to any configured room group by label.
 				var roomName = FindRoomGroupForLabel (label);
 				if (roomName != null)
@@ -1676,18 +1653,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					}
 				}
 
+			ManagedDevices = managedDevicesCopy;
+			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+
 			// Register new shade and any newly created room entity.
 			UpdateSubControllers (controllers, null);
-
-			ManagedDevices = managedDevicesCopy;
-			NotifyPropertyChanged (
-				"platform:managedDevices",
-				CreateValueForEntries (ManagedDevices));
-
-			if (entity is OverkizShadeEntity shadeEntity)
-				{
-				shadeEntity.PushInitialState ();
-				}
 
 			entity.StartPolling (_workQueue);
 			newRoomEntity?.StartPolling (_workQueue);
