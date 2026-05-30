@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -73,6 +74,35 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		{
 		Log ("GetCommand requested: commandName='" + commandName + "'");
 		return GetCommand (commandName);
+		}
+
+	private void LogDeclaredEntitySurface ()
+		{
+		try
+			{
+			var propertyEntries = new List<string> ();
+			foreach (PropertyInfo prop in GetType ().GetProperties (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+				{
+				EntityPropertyAttribute attr = prop.GetCustomAttribute<EntityPropertyAttribute> ();
+				if (attr != null)
+					propertyEntries.Add ((attr.Id ?? prop.Name) + "<=" + prop.Name);
+				}
+
+			var commandEntries = new List<string> ();
+			foreach (MethodInfo method in GetType ().GetMethods (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+				{
+				EntityCommandAttribute attr = method.GetCustomAttribute<EntityCommandAttribute> ();
+				if (attr != null)
+					commandEntries.Add ((attr.Id ?? method.Name) + "<=" + method.Name);
+				}
+
+			Log ("EntitySurface properties(" + propertyEntries.Count + "): " + string.Join (", ", propertyEntries));
+			Log ("EntitySurface commands(" + commandEntries.Count + "): " + string.Join (", ", commandEntries));
+			}
+		catch (Exception ex)
+			{
+			Log ("EntitySurface logging failed: " + ex.Message);
+			}
 		}
 
 	// ── IOverkizEntity ────────────────────────────────────────────────────
@@ -364,25 +394,42 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 	[EntityCommand (Id = "open", FriendlyName = "Open")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void Open () => _sendCommand ("open");
+	public void Open ()
+		{
+		Log ("COMMAND open invoked");
+		_sendCommand ("open");
+		}
 
 	[EntityCommand (Id = "close", FriendlyName = "Close")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void Close () => _sendCommand ("close");
+	public void Close ()
+		{
+		Log ("COMMAND close invoked");
+		_sendCommand ("close");
+		}
 
 	[EntityCommand (Id = "stop", FriendlyName = "Stop")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void Stop () => _sendCommand ("stop");
+	public void Stop ()
+		{
+		Log ("COMMAND stop invoked");
+		_sendCommand ("stop");
+		}
 
 	[EntityCommand (Id = "my", FriendlyName = "My")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void My () => _sendCommand ("my");
+	public void My ()
+		{
+		Log ("COMMAND my invoked");
+		_sendCommand ("my");
+		}
 
 	[EntityCommand (Id = "setOpenPercent", FriendlyName = "Set Open %")]
 	[EntityCommandMetadata (Programmable = true)]
 	public void SetOpenPercent (
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
 		{
+		Log ("COMMAND setOpenPercent invoked value=" + value);
 		// Overkiz closure is the inverse of open: 0 = open, 100 = closed.
 		var closure = 100 - Math.Max (0, Math.Min (100, value));
 		_sendCommandWithParams ("setClosure", [closure]);
@@ -461,6 +508,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			{
 			Log (">>> ExtensionSetPropertyValueExecutor FAILED: " + ex.Message);
 			}
+
+		LogDeclaredEntitySurface ();
 
 		// Both indicators start false; they will be set true BEFORE UpdateSubControllers()
 		// via SetInitialOnlineState() so the framework's initial GetState() sees them as ready.

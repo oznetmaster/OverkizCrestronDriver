@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 
 using Crestron.DeviceDrivers.EntityModel;
@@ -137,6 +138,35 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			TraceNotify (UiDefinitionProperty.Name, uiValue.Value);
 		}
 
+	private void LogDeclaredEntitySurface ()
+		{
+		try
+			{
+			var propertyEntries = new List<string> ();
+			foreach (PropertyInfo prop in GetType ().GetProperties (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+				{
+				EntityPropertyAttribute attr = prop.GetCustomAttribute<EntityPropertyAttribute> ();
+				if (attr != null)
+					propertyEntries.Add ((attr.Id ?? prop.Name) + "<=" + prop.Name);
+				}
+
+			var commandEntries = new List<string> ();
+			foreach (MethodInfo method in GetType ().GetMethods (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+				{
+				EntityCommandAttribute attr = method.GetCustomAttribute<EntityCommandAttribute> ();
+				if (attr != null)
+					commandEntries.Add ((attr.Id ?? method.Name) + "<=" + method.Name);
+				}
+
+			Log ("EntitySurface properties(" + propertyEntries.Count + "): " + string.Join (", ", propertyEntries));
+			Log ("EntitySurface commands(" + commandEntries.Count + "): " + string.Join (", ", commandEntries));
+			}
+		catch (Exception ex)
+			{
+			Log ("EntitySurface logging failed: " + ex.Message);
+			}
+		}
+
 	// ── IOverkizEntity ────────────────────────────────────────────────────
 
 	public DeviceUxCategory UxCategory => DeviceUxCategory.Room;
@@ -215,25 +245,44 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 
 	[EntityCommand (Id = "open", FriendlyName = "Open All")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void Open () => _openAll ();
+	public void Open ()
+		{
+		Log ("COMMAND open invoked");
+		_openAll ();
+		}
 
 	[EntityCommand (Id = "close", FriendlyName = "Close All")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void Close () => _closeAll ();
+	public void Close ()
+		{
+		Log ("COMMAND close invoked");
+		_closeAll ();
+		}
 
 	[EntityCommand (Id = "stop", FriendlyName = "Stop All")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void Stop () => _stopAll ();
+	public void Stop ()
+		{
+		Log ("COMMAND stop invoked");
+		_stopAll ();
+		}
 
 	[EntityCommand (Id = "my", FriendlyName = "My All")]
 	[EntityCommandMetadata (Programmable = true)]
-	public void My () => _myAll ();
+	public void My ()
+		{
+		Log ("COMMAND my invoked");
+		_myAll ();
+		}
 
 	[EntityCommand (Id = "setOpenPercent", FriendlyName = "Set Open % (All)")]
 	[EntityCommandMetadata (Programmable = true)]
 	public void SetOpenPercent (
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
-		=> _setOpenPercentAll (value);
+		{
+		Log ("COMMAND setOpenPercent invoked value=" + value);
+		_setOpenPercentAll (value);
+		}
 
 	/// <summary>
 	/// Updates the displayed open-percent for member <paramref name="index"/> and
@@ -367,6 +416,8 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		Log ("Registering ExtensionSetPropertyValueExecutor");
 		AddCommand (this, ExtensionSetPropertyValueExecutor.CommandName, setPropertyValue);
 
+		LogDeclaredEntitySurface ();
+
 		// Register per-member dynamic commands and properties.
 		RegisterMemberCommandsAndProperties ();
 
@@ -495,6 +546,8 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 						return v;
 					}));
 			}
+
+		Log ("DynamicControlSurface slots=" + MAX_SLOTS + " commandsPerSlot=5 propertiesPerSlot=5 totalDynamicCommands=" + (MAX_SLOTS * 5) + " totalDynamicProperties=" + (MAX_SLOTS * 5));
 		}
 
 	/// <summary>

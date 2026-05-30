@@ -486,6 +486,14 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 					cts.Token.ThrowIfCancellationRequested ();
 
+					// Known issue/workaround context:
+					// After reboot, the first commissioned child under this gateway can fail to reach full
+					// Crestron wrapper promotion (status-only / not controllable), while removing and re-adding
+					// the same child in the same gateway session can then succeed. Discovery, entity registration,
+					// platform:managedDevices publication, control-surface registration, child polling, and event
+					// listener startup have all been verified before that first failed commission. If this startup
+					// sequence is revisited, preserve the current ordering evidence and keep the proven operational
+					// workaround documented in GPT55_DIAGNOSIS.md with any changes.
 					StartAllChildPolling ();
 					StartEventLoop ();
 
@@ -912,6 +920,29 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		return members;
 		}
 
+	private void LogDiscoveryAudit (
+		string entityType,
+		string label,
+		string overkizUrl,
+		string entityControllerId,
+		string configurableDriverEntityId,
+		string managedDevicesKey,
+		PlatformManagedDevice managedDevice)
+		{
+		Log (
+			"DISCOVERY AUDIT: " +
+			"EntityType=" + entityType +
+			" Label='" + label + "'" +
+			" ControllerId=" + entityControllerId +
+			" ConfigurableDriverEntityId=" + configurableDriverEntityId +
+			" ManagedDevicesKey=" + managedDevicesKey +
+			" ManagedDevice.Name='" + managedDevice?.Name + "'" +
+			" ManagedDevice.Category=" + managedDevice?.UxCategory +
+			" ManagedDevice.Model='" + managedDevice?.Model + "'" +
+			" ManagedDevice.Manufacturer='" + managedDevice?.Manufacturer + "'" +
+			" OverkizUrl='" + overkizUrl + "'");
+		}
+
 	/// <summary>
 	/// Updates an existing room entity's members in place (or creates it if it does not yet
 	/// exist). Unlike the old Destroy+Create pattern this preserves the entity's
@@ -1208,13 +1239,23 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 				_entities[url] = entity;
 
-				controllersToAdd.Add (new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null));
-				managedDevicesCopy[entity.ControllerId] = new PlatformManagedDevice (
+				var configurableEntity = new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null);
+				controllersToAdd.Add (configurableEntity);
+				var managedDevice = new PlatformManagedDevice (
 						entity.UxCategory,
 						label,
 						"Somfy / Overkiz",
 						device.UiClass.HasValue ? device.UiClass.Value.ToString () : entity.UxCategory.ToString (),
 						null);
+				managedDevicesCopy[entity.ControllerId] = managedDevice;
+				LogDiscoveryAudit (
+					entityType: entity.GetType ().Name,
+					label: label,
+					overkizUrl: url,
+					entityControllerId: entity.ControllerId,
+					configurableDriverEntityId: entity.ControllerId,
+					managedDevicesKey: entity.ControllerId,
+					managedDevice: managedDevice);
 
 				Log ("Queued device: " + label + " (id=" + entity.ControllerId + ", url=" + url + ")");
 				}
