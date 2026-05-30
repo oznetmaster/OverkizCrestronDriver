@@ -547,10 +547,22 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		lock (_entitiesLock)
 			{
 			foreach (IOverkizEntity e in _entities.Values)
+				{
+				Log ("StartAllChildPolling - StartPolling for " + e.ControllerId + " type=" + e.GetType ().Name);
+				if (e is OverkizShadeEntity shade)
+					Log ("StartAllChildPolling - shade pre-state id=" + shade.ControllerId + " online=" + shade.OnlineIndicatorIsOnline + " ready=" + shade.ReadyIndicatorIsReady + " label='" + shade.DeviceLabel + "'");
 				e.StartPolling (_workQueue);
+				if (e is OverkizShadeEntity startedShade)
+					Log ("StartAllChildPolling - shade post-state id=" + startedShade.ControllerId + " online=" + startedShade.OnlineIndicatorIsOnline + " ready=" + startedShade.ReadyIndicatorIsReady + " label='" + startedShade.DeviceLabel + "'");
+				}
 
 			foreach (OverkizRoomEntity r in _roomEntities.Values)
+				{
+				Log ("StartAllChildPolling - StartPolling for room " + r.ControllerId);
+				Log ("StartAllChildPolling - room pre-state id=" + r.ControllerId + " online=" + r.OnlineIndicatorIsOnline + " ready=" + r.ReadyIndicatorIsReady + " label='" + r.DeviceLabel + "'");
 				r.StartPolling (_workQueue);
+				Log ("StartAllChildPolling - room post-state id=" + r.ControllerId + " online=" + r.OnlineIndicatorIsOnline + " ready=" + r.ReadyIndicatorIsReady + " label='" + r.DeviceLabel + "'");
+				}
 			}
 		}
 
@@ -1211,9 +1223,12 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (controllersToAdd.Count > 0)
 			{
 			ct.ThrowIfCancellationRequested ();
+			Log ("DiscoverDevicesAsync - UpdateSubControllers start count=" + controllersToAdd.Count);
 			UpdateSubControllers (controllersToAdd, null);
+			Log ("DiscoverDevicesAsync - UpdateSubControllers complete count=" + controllersToAdd.Count);
 
 			ManagedDevices = managedDevicesCopy;
+			Log ("DiscoverDevicesAsync - publishing platform:managedDevices count=" + ManagedDevices.Count);
 			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 
 			Log ("Published " + controllersToAdd.Count + " shade(s)");
@@ -1610,6 +1625,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 			var label = NormalizeLabel (device.Label ?? ev.DeviceUrl);
 			Log ("Event: DeviceCreated – label=" + label + " url=" + ev.DeviceUrl);
+			Log ("Event: DeviceCreated – entity created type=" + entity.GetType ().Name
+				+ " controllerId=" + entity.ControllerId
+				+ " uxCategory=" + entity.UxCategory
+				+ " label='" + label + "'");
 			PlatformManagedDevice managedDevice = new PlatformManagedDevice (
 				entity.UxCategory,
 				label,
@@ -1624,19 +1643,32 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			lock (_entitiesLock)
 				{
 				if (_entities.ContainsKey (ev.DeviceUrl))
+					{
+					Log ("Event: DeviceCreated – entity already existed during lock for url=" + ev.DeviceUrl);
 					return;
+					}
 				_entities[ev.DeviceUrl] = entity;
+				Log ("Event: DeviceCreated – inserted entity url=" + ev.DeviceUrl + " controllerId=" + entity.ControllerId + " entityCount=" + _entities.Count);
+
+				if (entity is OverkizShadeEntity shade)
+					{
+					Log ("Event: DeviceCreated – shade pre-seed state controllerId=" + shade.ControllerId + " online=" + shade.OnlineIndicatorIsOnline + " ready=" + shade.ReadyIndicatorIsReady);
+					shade.SetInitialOnlineState (true);
+					Log ("Event: DeviceCreated – shade post-seed state controllerId=" + shade.ControllerId + " online=" + shade.OnlineIndicatorIsOnline + " ready=" + shade.ReadyIndicatorIsReady);
+					}
 
 				// Determine if this shade belongs to any configured room group by label.
 				var roomName = FindRoomGroupForLabel (label);
 				if (roomName != null)
 					TrackShadeInRoom (ev.DeviceUrl, roomName);
+				Log ("Event: DeviceCreated – room mapping label='" + label + "' room='" + (roomName ?? "(none)") + "'");
 
 				controllers = [new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null)];
 				managedDevicesCopy = ManagedDevices != null
 					? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
 					: [];
 				managedDevicesCopy[entity.ControllerId] = managedDevice;
+				Log ("Event: DeviceCreated – managedDevices staged count=" + managedDevicesCopy.Count + " containsNewChild=" + managedDevicesCopy.ContainsKey (entity.ControllerId));
 
 				var effectiveRoom = roomName;
 				// Update or create the room aggregate for the new member.
@@ -1654,13 +1686,23 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				}
 
 			ManagedDevices = managedDevicesCopy;
+			Log ("Event: DeviceCreated - publishing platform:managedDevices for " + entity.ControllerId + " count=" + ManagedDevices.Count);
 			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 
 			// Register new shade and any newly created room entity.
+			Log ("Event: DeviceCreated - UpdateSubControllers start for " + entity.ControllerId + " count=" + controllers.Count + " newRoomEntity=" + (newRoomEntity?.ControllerId ?? "(none)"));
 			UpdateSubControllers (controllers, null);
+			Log ("Event: DeviceCreated - UpdateSubControllers complete for " + entity.ControllerId);
+			if (entity is OverkizShadeEntity registeredShade)
+				Log ("Event: DeviceCreated - post-register shade state controllerId=" + registeredShade.ControllerId + " online=" + registeredShade.OnlineIndicatorIsOnline + " ready=" + registeredShade.ReadyIndicatorIsReady);
 
+			Log ("Event: DeviceCreated - StartPolling for " + entity.ControllerId + " type=" + entity.GetType ().Name);
 			entity.StartPolling (_workQueue);
+			if (entity is OverkizShadeEntity startedShade)
+				Log ("Event: DeviceCreated - post-StartPolling shade state controllerId=" + startedShade.ControllerId + " online=" + startedShade.OnlineIndicatorIsOnline + " ready=" + startedShade.ReadyIndicatorIsReady);
 			newRoomEntity?.StartPolling (_workQueue);
+			if (newRoomEntity != null)
+				Log ("Event: DeviceCreated - room entity started controllerId=" + newRoomEntity.ControllerId + " online=" + newRoomEntity.OnlineIndicatorIsOnline + " ready=" + newRoomEntity.ReadyIndicatorIsReady);
 
 			Log ("Event: DeviceCreated – added child " + label + " (id=" + entity.ControllerId + ")");
 			}
@@ -1901,6 +1943,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				?? false;
 			var apiLabel = NormalizeLabel (device.Label) ?? string.Empty;
 			_ = _shadeDisplayNames.TryGetValue (apiLabel, out string displayName);
+
 			var entity = new OverkizShadeEntity (
 				controllerId: safeId,
 				deviceUrl: url,

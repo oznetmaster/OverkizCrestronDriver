@@ -116,6 +116,27 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	private void Log (string msg) =>
 		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
 
+	private void TraceNotify (string propertyName, DriverEntityValue value)
+		{
+		Log ("NOTIFY " + propertyName + " -> " + value);
+		NotifyPropertyChanged (propertyName, value);
+		}
+
+	private void TraceUiDefinitionNotification (string source)
+		{
+		if (_uiDefinition == null)
+			{
+			Log (source + ": uiDefinition unavailable");
+			return;
+			}
+
+		Log (source + ": reading uiDefinition value");
+		DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
+		Log (source + ": uiDefinition hasValue=" + uiValue.HasValue);
+		if (uiValue.HasValue)
+			TraceNotify (UiDefinitionProperty.Name, uiValue.Value);
+		}
+
 	// ── IOverkizEntity ────────────────────────────────────────────────────
 
 	public DeviceUxCategory UxCategory => DeviceUxCategory.Room;
@@ -139,7 +160,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		if (OnlineIndicatorIsOnline == online)
 			return;
 		OnlineIndicatorIsOnline = online;
-		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (online));
+		TraceNotify ("onlineIndicator:isOnline", new DriverEntityValue (online));
 		}
 
 	public void UpdateAvailability (bool available) => SetOnline (available);
@@ -161,7 +182,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			return;
 		DeviceLabel = label;
 		if (_frameworkReady != 0)
-			NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
+			TraceNotify ("deviceLabel", new DriverEntityValue (DeviceLabel));
 		}
 
 	// ── Extension UI properties ───────────────────────────────────────────
@@ -170,21 +191,24 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
 	public string DeviceLabel
 		{
-		get; private set;
+		get;
+		private set;
 		}
 
 	[EntityProperty (Id = "isTwoWay", FriendlyName = "Two-Way")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
 	public bool IsTwoWay
 		{
-		get; private set;
+		get;
+		private set;
 		}
 
 	[EntityProperty (Id = "hasMy", FriendlyName = "Has My")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
 	public bool HasMy
 		{
-		get; private set;
+		get;
+		private set;
 		}
 
 	// ── Extension UI commands (room-level) ────────────────────────────────
@@ -222,7 +246,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		var key = "openPercent_" + index;
 		_memberProps[key] = new DriverEntityValue (openPercent);
 		if (_frameworkReady != 0)
-			NotifyPropertyChanged (key, new DriverEntityValue (openPercent));
+			TraceNotify (key, new DriverEntityValue (openPercent));
 		}
 
 	// ── Polling
@@ -238,24 +262,19 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 
 		Log ("StartPolling: pushing initial notifications");
 
-		if (_uiDefinition != null)
-			{
-			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
-			if (uiValue.HasValue)
-				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
-			}
+		TraceUiDefinitionNotification ("StartPolling");
 
-		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
-		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
-		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
+		TraceNotify ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
+		TraceNotify ("deviceLabel", new DriverEntityValue (DeviceLabel));
+		TraceNotify ("isTwoWay", new DriverEntityValue (IsTwoWay));
+		TraceNotify ("hasMy", new DriverEntityValue (HasMy));
 		for (var i = 0; i < MAX_SLOTS; i++)
 			{
-			NotifyPropertyChanged ("openPercent_" + i, _memberProps["openPercent_" + i]);
-			NotifyPropertyChanged ("shadeLabel_" + i, _memberProps["shadeLabel_" + i]);
-			NotifyPropertyChanged ("visible_" + i, _memberProps["visible_" + i]);
-			NotifyPropertyChanged ("visible_slider_" + i, _memberProps["visible_slider_" + i]);
-			NotifyPropertyChanged ("visible_my_" + i, _memberProps["visible_my_" + i]);
+			TraceNotify ("openPercent_" + i, _memberProps["openPercent_" + i]);
+			TraceNotify ("shadeLabel_" + i, _memberProps["shadeLabel_" + i]);
+			TraceNotify ("visible_" + i, _memberProps["visible_" + i]);
+			TraceNotify ("visible_slider_" + i, _memberProps["visible_slider_" + i]);
+			TraceNotify ("visible_my_" + i, _memberProps["visible_my_" + i]);
 			}
 
 		SetOnline (true);
@@ -341,9 +360,11 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 
 		// Register extension command executors.
 		var doCommand = new ExtensionDoCommandExecutor (GetCommand, resources.Logger);
+		Log ("Registering ExtensionDoCommandExecutor");
 		AddCommand (this, ExtensionDoCommandExecutor.CommandName, doCommand);
 
 		var setPropertyValue = new ExtensionSetPropertyValueExecutor (GetCommand, resources.Logger);
+		Log ("Registering ExtensionSetPropertyValueExecutor");
 		AddCommand (this, ExtensionSetPropertyValueExecutor.CommandName, setPropertyValue);
 
 		// Register per-member dynamic commands and properties.
@@ -388,6 +409,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "open_" + i, new DelegateCommandInstance ("open_" + i, noDef, noMeta,
 				(id, inst, args, lookup, cb) =>
 					{
+					Log ("COMMAND open_" + capturedIdx + " invoked");
 						GetSlotMember (capturedIdx)?.Open ();
 						cb?.Invoke (ok);
 					}, null));
@@ -395,6 +417,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "close_" + i, new DelegateCommandInstance ("close_" + i, noDef, noMeta,
 				(id, inst, args, lookup, cb) =>
 					{
+					Log ("COMMAND close_" + capturedIdx + " invoked");
 						GetSlotMember (capturedIdx)?.Close ();
 						cb?.Invoke (ok);
 					}, null));
@@ -402,6 +425,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "stop_" + i, new DelegateCommandInstance ("stop_" + i, noDef, noMeta,
 				(id, inst, args, lookup, cb) =>
 					{
+					Log ("COMMAND stop_" + capturedIdx + " invoked");
 						GetSlotMember (capturedIdx)?.Stop ();
 						cb?.Invoke (ok);
 					}, null));
@@ -409,6 +433,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "my_" + i, new DelegateCommandInstance ("my_" + i, noDef, noMeta,
 				(id, inst, args, lookup, cb) =>
 					{
+					Log ("COMMAND my_" + capturedIdx + " invoked");
 						GetSlotMember (capturedIdx)?.My ();
 						cb?.Invoke (ok);
 					}, null));
@@ -419,6 +444,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "setOpenPercent_" + i, new DelegateCommandInstance ("setOpenPercent_" + i, pctCmdDef, noMeta,
 				(id, inst, args, lookup, cb) =>
 					{
+					Log ("COMMAND setOpenPercent_" + capturedIdx + " invoked");
 						if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
 							{
 							_ = pv.TryGetValue (out int pct);

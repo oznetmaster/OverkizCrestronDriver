@@ -48,6 +48,33 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	private void Log (string msg) =>
 		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
 
+	private void TraceNotify (string propertyName, DriverEntityValue value)
+		{
+		Log ("NOTIFY " + propertyName + " -> " + value);
+		NotifyPropertyChanged (propertyName, value);
+		}
+
+	private void TraceUiDefinitionNotification (string source)
+		{
+		if (_uiDefinition == null)
+			{
+			Log (source + ": uiDefinition unavailable");
+			return;
+			}
+
+		Log (source + ": reading uiDefinition value");
+		DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
+		Log (source + ": uiDefinition hasValue=" + uiValue.HasValue);
+		if (uiValue.HasValue)
+			TraceNotify (UiDefinitionProperty.Name, uiValue.Value);
+		}
+
+	private BoundItem<CommandInstance> TraceGetCommand (string commandName)
+		{
+		Log ("GetCommand requested: commandName='" + commandName + "'");
+		return GetCommand (commandName);
+		}
+
 	// ── IOverkizEntity ────────────────────────────────────────────────────
 
 	public DeviceUxCategory UxCategory => DeviceUxCategory.Shade;
@@ -57,13 +84,15 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	[EntityProperty (Id = "onlineIndicator:isOnline")]
 	public bool OnlineIndicatorIsOnline
 		{
-		get; private set;
+		get;
+		private set;
 		}
 
 	[EntityProperty (Id = "readyIndicator:isReady")]
 	public bool ReadyIndicatorIsReady
 		{
-		get; private set;
+		get;
+		private set;
 		}
 
 	public void SetOnline (bool online)
@@ -75,7 +104,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		if (OnlineIndicatorIsOnline != online)
 			{
 			OnlineIndicatorIsOnline = online;
-			NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (online));
+			TraceNotify ("onlineIndicator:isOnline", new DriverEntityValue (online));
 			Log ("SetOnline: onlineIndicator:isOnline -> " + online);
 			changed = true;
 			}
@@ -83,7 +112,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		if (ReadyIndicatorIsReady != online)
 			{
 			ReadyIndicatorIsReady = online;
-			NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (online));
+			TraceNotify ("readyIndicator:isReady", new DriverEntityValue (online));
 			Log ("SetOnline: readyIndicator:isReady -> " + online);
 			changed = true;
 			}
@@ -127,18 +156,12 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 		// Push all initial properties WITHOUT setting _frameworkReady
 		// This allows ValuesChanged to fire later and complete the initialization
-		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
-		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (OnlineIndicatorIsOnline));
-		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (DeviceLabel));
-		NotifyPropertyChanged ("hasMy", new DriverEntityValue (HasMy));
-		NotifyPropertyChanged ("isTwoWay", new DriverEntityValue (IsTwoWay));
-
-		if (_uiDefinition != null)
-			{
-			DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
-			if (uiValue.HasValue)
-				NotifyPropertyChanged (UiDefinitionProperty.Name, uiValue.Value);
-			}
+		TraceNotify ("readyIndicator:isReady", new DriverEntityValue (ReadyIndicatorIsReady));
+		TraceNotify ("onlineIndicator:isOnline", new DriverEntityValue (OnlineIndicatorIsOnline));
+		TraceNotify ("deviceLabel", new DriverEntityValue (DeviceLabel));
+		TraceNotify ("hasMy", new DriverEntityValue (HasMy));
+		TraceNotify ("isTwoWay", new DriverEntityValue (IsTwoWay));
+		TraceUiDefinitionNotification ("PushInitialState");
 
 		Log ("PushInitialState: notifications sent");
 		}
@@ -147,8 +170,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		{
 		OnlineIndicatorIsOnline = true;
 		ReadyIndicatorIsReady = true;
-		NotifyPropertyChanged ("onlineIndicator:isOnline", new DriverEntityValue (true));
-		NotifyPropertyChanged ("readyIndicator:isReady", new DriverEntityValue (true));
+		TraceNotify ("onlineIndicator:isOnline", new DriverEntityValue (true));
+		TraceNotify ("readyIndicator:isReady", new DriverEntityValue (true));
 		Log ("ForcePublishOnlineReadyTrue: published online=true ready=true");
 		}
 
@@ -183,7 +206,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		ApiLabel = label;
 		_deviceLabel = _displayNameOverride ?? ApiLabel;
 
-		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (_deviceLabel));
+		TraceNotify ("deviceLabel", new DriverEntityValue (_deviceLabel));
 		Log ("UpdateLabel: apiLabel='" + ApiLabel + "' deviceLabel='" + _deviceLabel + "'");
 		}
 
@@ -193,7 +216,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
 		_deviceLabel = _displayNameOverride ?? ApiLabel;
 
-		NotifyPropertyChanged ("deviceLabel", new DriverEntityValue (_deviceLabel));
+		TraceNotify ("deviceLabel", new DriverEntityValue (_deviceLabel));
 		Log ("UpdateDisplayName: apiLabel='" + ApiLabel + "' deviceLabel='" + _deviceLabel + "'");
 		}
 
@@ -245,6 +268,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			{
 			Log (">>> StartPolling ENTRY #" + callNumber + "; this=" + this.GetType().FullName + " controllerId=" + ControllerId);
 			Log (">>> StartPolling ENTRY; isOneWay=" + IsOneWay);
+			Log (">>> StartPolling PRE-STATE online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
 			if (!IsOneWay)
 				{
 				_queue = queue;
@@ -254,6 +278,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 			Log (">>> StartPolling: calling SetOnline(true)");
 			SetOnline (true);
+			Log (">>> StartPolling POST-STATE online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
 			Log (">>> StartPolling EXIT #" + callNumber);
 			}
 		catch (Exception ex)
@@ -265,11 +290,12 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 	public void StopPolling ()
 		{
-		Log ("StopPolling called");
+		Log ("StopPolling called; pre-state online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady + " timerExists=" + (_pollTimer != null));
 		Timer t = Interlocked.Exchange (ref _pollTimer, null);
 		_ = (t?.Change (Timeout.Infinite, Timeout.Infinite));
 		t?.Dispose ();
 		SetOnline (false);
+		Log ("StopPolling complete; post-state online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
 		}
 
 	private void PollCallback (object _) =>
@@ -292,7 +318,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			if (field == value)
 				return;
 			field = value;
-			NotifyPropertyChanged ("openPercent", new DriverEntityValue (value));
+			TraceNotify ("openPercent", new DriverEntityValue (value));
 			}
 		} = 100;
 
@@ -330,7 +356,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			if (field == value)
 				return;
 			field = value;
-			NotifyPropertyChanged ("isMoving", new DriverEntityValue (value));
+			TraceNotify ("isMoving", new DriverEntityValue (value));
 			}
 		}
 
@@ -415,7 +441,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		try
 			{
 			Log (">>> About to create ExtensionDoCommandExecutor");
-			var doCommand = new ExtensionDoCommandExecutor (GetCommand, resources.Logger);
+			var doCommand = new ExtensionDoCommandExecutor (TraceGetCommand, resources.Logger);
 			AddCommand (this, ExtensionDoCommandExecutor.CommandName, doCommand);
 			Log (">>> ExtensionDoCommandExecutor succeeded");
 			}
@@ -427,7 +453,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		try
 			{
 			Log (">>> About to create ExtensionSetPropertyValueExecutor");
-			var setPropertyValue = new ExtensionSetPropertyValueExecutor (GetCommand, resources.Logger);
+			var setPropertyValue = new ExtensionSetPropertyValueExecutor (TraceGetCommand, resources.Logger);
 			AddCommand (this, ExtensionSetPropertyValueExecutor.CommandName, setPropertyValue);
 			Log (">>> ExtensionSetPropertyValueExecutor succeeded");
 			}
