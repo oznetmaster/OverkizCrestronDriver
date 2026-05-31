@@ -68,6 +68,8 @@ Home extension driver built entirely on the V2 entity model without a RAD base c
 
 If either local-mode field is supplied, the driver treats the configuration as local mode and requires both local values. Otherwise it requires the cloud username and password.
 
+Current limitation: install and configure this driver using the Crestron Home Setup application. The beta Configure Pro workflow is not currently recommended for this driver.
+
 ---
 
 ## Configuration
