@@ -476,11 +476,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					await ConnectClientAsync ().ConfigureAwait (false);
 
 					cts.Token.ThrowIfCancellationRequested ();
-					SetOnline (true);
-					SetReady (true);
+					await DiscoverDevicesAsync (cts.Token).ConfigureAwait (false);
 
 					cts.Token.ThrowIfCancellationRequested ();
-					await DiscoverDevicesAsync (cts.Token).ConfigureAwait (false);
+					RegisterEntitiesWithFramework ();
 
 					_ = tcs.TrySetResult (true);
 
@@ -495,6 +494,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					// sequence is revisited, preserve the current ordering evidence and keep the proven operational
 					// workaround documented in GPT55_DIAGNOSIS.md with any changes.
 					StartAllChildPolling ();
+
+					cts.Token.ThrowIfCancellationRequested ();
+					SetOnline (true);
+					SetReady (true);
+					ScheduleDelayedManagedDevicesRepublish (cts.Token);
 					StartEventLoop ();
 
 					lock (_connectLock)
@@ -1412,6 +1416,33 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 
 		Log ("Re-registered " + controllers.Count + " device(s) with framework");
+		}
+
+	private void ScheduleDelayedManagedDevicesRepublish (CancellationToken token)
+		{
+		_ = Task.Run (async () =>
+			{
+				try
+					{
+					await Task.Delay (1500, token).ConfigureAwait (false);
+					token.ThrowIfCancellationRequested ();
+
+					Dictionary<string, PlatformManagedDevice> snapshot = ManagedDevices != null
+						? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
+						: [];
+
+					Log ("Delayed republish - publishing platform:managedDevices count=" + snapshot.Count);
+					NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (snapshot));
+					}
+				catch (OperationCanceledException)
+					{
+					Log ("Delayed republish canceled");
+					}
+				catch (Exception ex)
+					{
+					Log ("Delayed republish failed: " + ex);
+					}
+			});
 		}
 
 	// ── Private: event loop ───────────────────────────────────────────────
