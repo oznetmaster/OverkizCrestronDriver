@@ -1,9 +1,13 @@
 name: Release Package
 
 on:
+  workflow_dispatch:
   release:
     types:
       - published
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -64,6 +68,6 @@ jobs:
       - name: Upload package asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ github.event.release.tag_name || github.ref_name }}
           files: ${{ steps.package.outputs.pkg_path }}
           fail_on_unmatched_files: true
