@@ -1,6 +1,5 @@
 
 ## Overkiz-specific
-test-credentials.json
 OverKizCrestronDriver/*.backup
 OverKizCrestronDriver/*.head
 OverKizCrestronDriver/*.pre-cache
