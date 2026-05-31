@@ -119,6 +119,7 @@ The `ApiLabel` is the raw Overkiz API name used for all room-matching logic. The
 
 - [OverkizClient](https://www.nuget.org/packages/OverkizClient) NuGet package (restored automatically)
 - [Crestron.DeviceDrivers.DevKit](https://www.nuget.org/packages/Crestron.DeviceDrivers.DevKit) NuGet package
+- C# 13 language features compiled for a `.NET Framework 4.7.2` target, with compatibility shim assemblies merged into the driver package as needed
 - [ILRepack](https://github.com/gluck/il-repack) (via `ILRepackMerge.ps1`) to merge dependencies into a self-contained driver DLL
 - `PatchMergedAssembly.ps1` to rewrite merged `System.*` helper types that Crestron Home's Mono sandbox rejects during reflection
 - `ManifestUtil.exe` from the Crestron Driver SDK to produce the final `.pkg`
@@ -131,9 +132,11 @@ dotnet build -c Release
 
 The build pipeline:
 1. Compiles the driver targeting `net472`
+   - The project uses `LangVersion=latest` (currently C# 13) while targeting the Crestron-required `.NET Framework 4.7.2` runtime.
+   - Required compatibility shim assemblies are merged into the driver and then patched for Crestron Home's runtime constraints.
 2. Bumps `DriverVersion` and `VersionDate` in `Shade_Overkiz_IP_V2.json`
-   - **Release** builds increment the 3rd component and reset the 4th to `0000`
-   - **Debug** builds increment only the 4th component
+	  - Every deployable build increments the 4th component.
+   - Start a new public release line by running `StartReleaseCycle.ps1`, which increments the 3rd component and resets the 4th to `0000`.
 3. ILRepacks runtime dependencies into a single `Shade_Overkiz_IP_V2.dll`
 4. Runs `PatchMergedAssembly.ps1` against the merged assembly
 5. Packages everything into `Shade_Overkiz_IP_V2.pkg` using Crestron's ManifestUtil
