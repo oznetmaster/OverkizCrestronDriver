@@ -1,6 +1,16 @@
 
 ## Overkiz-specific
 test-credentials.json
+CONFIGURE_PRO_BETA_REPORT.md
+GPT55_DIAGNOSIS.md
+OverKizCrestronDriver/FetchLatestLog.ps1
+OverKizCrestronDriver/ParseLatestLog.ps1
+OverKizCrestronDriver/*.backup
+OverKizCrestronDriver/*.head
+OverKizCrestronDriver/*.pre-cache
+OverKizCrestronDriver/*.zip
+OverKizCrestronDriver/j.json
+h -File .OverKizCrestronDriverFetchLatestLog.ps1
 
 ## Crestron driver build artifacts
 *.pkg
