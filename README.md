@@ -53,7 +53,7 @@ Home extension driver built entirely on the V2 entity model without a RAD base c
 
 Preferred download source: use the attached `Shade_Overkiz_IP_V2.pkg` asset from the relevant GitHub Release. The automatic GitHub `Source code (zip)` and `Source code (tar.gz)` assets are repository snapshots, not installable Crestron driver packages.
 
-1. Build the project in **Release** configuration — this produces `Shade_Overkiz_IP_V2.pkg` in the output folder.
+1. Download `Shade_Overkiz_IP_V2.pkg` from the GitHub Release assets, or build it yourself using the instructions in [Building from Source](#building-from-source).
 2. Upload the `.pkg` to your Crestron Home processor manually (for example via SFTP to `/user/ThirdPartyDrivers/Import`).
 3. In the Crestron Home **Configure** application, add a new device and select the **Tahoma Gateway** driver.
 4. Fill in the connection configuration:
