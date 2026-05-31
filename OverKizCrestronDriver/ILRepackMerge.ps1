@@ -1,7 +1,10 @@
 param(
 	[Parameter(Mandatory)][string] $TargetPath,
 	[Parameter(Mandatory)][string] $InputListFile,
-	[Parameter(Mandatory)][string] $LibDir
+	[Parameter(Mandatory)][string] $LibDir,
+	[string] $SdkLibDir = $env:CRESTRON_DRIVER_SDK_LIBRARIES,
+	[string] $FxRefDir = $env:NET472_REFERENCE_ASSEMBLIES,
+	[string] $FxRuntimeDir = $env:NETFX_RUNTIME_DIR
 )
 
 $inputs = Get-Content $InputListFile | Where-Object { $_ -ne '' } | Where-Object { Test-Path $_ }
@@ -16,21 +19,18 @@ $mergeSet = $inputs | ForEach-Object { [System.IO.Path]::GetFileName($_).ToLower
 $libArgs = @("/lib:`"$LibDir`"")
 
 # Also add the Crestron SDK Libraries dir so EntityModel and other SDK refs resolve
-$sdkLibDir = "C:\Applications (x86)\Crestron\Driver SDK\Libraries"
-if (Test-Path $sdkLibDir) {
+if (-not [string]::IsNullOrWhiteSpace($SdkLibDir) -and (Test-Path $SdkLibDir)) {
 	$libArgs += "/lib:`"$sdkLibDir`""
 }
 
 # Add the .NET Framework 4.7.2 reference assemblies so Cecil can resolve type-forwarder
 # chains in net472 facade assemblies without infinite recursion
-$fxRefDir = "C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2"
-if (Test-Path $fxRefDir) {
+if (-not [string]::IsNullOrWhiteSpace($FxRefDir) -and (Test-Path $FxRefDir)) {
 	$libArgs += "/lib:`"$fxRefDir`""
 }
 
 # Also add the runtime dir as a fallback
-$fxRuntimeDir = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319"
-if (Test-Path $fxRuntimeDir) {
+if (-not [string]::IsNullOrWhiteSpace($FxRuntimeDir) -and (Test-Path $FxRuntimeDir)) {
 	$libArgs += "/lib:`"$fxRuntimeDir`""
 }
 
