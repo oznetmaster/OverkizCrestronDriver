@@ -40,6 +40,9 @@
 	<LocalNet472ReferenceAssemblies Condition="'$(LocalNet472ReferenceAssemblies)' == ''">$(NET472_REFERENCE_ASSEMBLIES)</LocalNet472ReferenceAssemblies>
 	<LocalNetFxRuntimeDir Condition="'$(LocalNetFxRuntimeDir)' == ''">$(NETFX_RUNTIME_DIR)</LocalNetFxRuntimeDir>
 	<ManifestUtilExe Condition="'$(ManifestUtilExe)' == ''">ManifestUtil.exe</ManifestUtilExe>
+	<MergeDependenciesContinueOnError Condition="'$(MergeDependenciesContinueOnError)' == ''">true</MergeDependenciesContinueOnError>
+	<PackageDriverContinueOnError Condition="'$(PackageDriverContinueOnError)' == ''">true</PackageDriverContinueOnError>
+	<PackageDriverIgnoreExitCode Condition="'$(PackageDriverIgnoreExitCode)' == ''">true</PackageDriverIgnoreExitCode>
   </PropertyGroup>
 
   <!-- BumpDriverVersion: increments the 4th component of DriverVersion on every Debug build -->
@@ -86,7 +89,7 @@
 	  <MergeInputs Include="$(TargetDir)Hafner.Compatibility.NullableReferenceTypeAttributes.G3.dll" />
 	</ItemGroup>
 	<WriteLinesToFile File="$(TargetDir)merge_inputs.txt" Lines="@(MergeInputs)" Overwrite="true" />
-	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\ILRepackMerge.ps1&quot; -TargetPath &quot;$(TargetPath)&quot; -InputListFile &quot;$(TargetDir)merge_inputs.txt&quot; -LibDir &quot;$(TargetDir.TrimEnd('\'))&quot; -SdkLibDir &quot;$(LocalCrestronSdkLibDir)&quot; -FxRefDir &quot;$(LocalNet472ReferenceAssemblies)&quot; -FxRuntimeDir &quot;$(LocalNetFxRuntimeDir)&quot;" ContinueOnError="true" />
+	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\ILRepackMerge.ps1&quot; -TargetPath &quot;$(TargetPath)&quot; -InputListFile &quot;$(TargetDir)merge_inputs.txt&quot; -LibDir &quot;$(TargetDir.TrimEnd('\'))&quot; -SdkLibDir &quot;$(LocalCrestronSdkLibDir)&quot; -FxRefDir &quot;$(LocalNet472ReferenceAssemblies)&quot; -FxRuntimeDir &quot;$(LocalNetFxRuntimeDir)&quot;" ContinueOnError="$(MergeDependenciesContinueOnError)" />
 	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\PatchMergedAssembly.ps1&quot; -AssemblyPath &quot;$(TargetPath)&quot; -OutputPath &quot;$(TargetDir)patched\$(AssemblyName).dll&quot;" ContinueOnError="false" />
   </Target>
 
@@ -97,7 +100,7 @@
 	  <IncludeInPkgFiles Include="$(MSBuildProjectDirectory)\IncludeInPkg\**\*" Exclude="$(MSBuildProjectDirectory)\IncludeInPkg\**\*.xsd" />
 	</ItemGroup>
 	<Copy SourceFiles="@(IncludeInPkgFiles)" DestinationFiles="@(IncludeInPkgFiles->'$(TargetDir)patched\IncludeInPkg\%(RecursiveDir)%(Filename)%(Extension)')" />
-	<Exec Command="&quot;$(ManifestUtilExe)&quot; --file &quot;$(TargetDir)patched\$(AssemblyName).dll&quot; --lib &quot;$(TargetDir.TrimEnd('\'))&quot; --output &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="true" IgnoreExitCode="true" />
+	<Exec Command="&quot;$(ManifestUtilExe)&quot; --file &quot;$(TargetDir)patched\$(AssemblyName).dll&quot; --lib &quot;$(TargetDir.TrimEnd('\'))&quot; --output &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="$(PackageDriverContinueOnError)" IgnoreExitCode="$(PackageDriverIgnoreExitCode)" />
   </Target>
   <Import Project="OverKizCrestronDriver.Local.targets" Condition="Exists('OverKizCrestronDriver.Local.targets')" />
 

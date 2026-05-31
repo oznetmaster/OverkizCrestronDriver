@@ -29,6 +29,12 @@ jobs:
       - name: Set up NuGet
         uses: NuGet/setup-nuget@v2
 
+      - name: Install ILRepack tool
+        shell: pwsh
+        run: |
+          dotnet tool install --global dotnet-ilrepack
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Install ManifestUtil package
         shell: pwsh
         run: |
@@ -52,7 +58,7 @@ jobs:
       - name: Build release package
         shell: pwsh
         run: |
-          dotnet build OverkizCrestronDriver.slnx -c Release -p:ManifestUtilExe="${{ steps.manifestutil.outputs.exe_path }}"
+          dotnet build OverkizCrestronDriver.slnx -c Release -p:ManifestUtilExe="${{ steps.manifestutil.outputs.exe_path }}" -p:MergeDependenciesContinueOnError=false -p:PackageDriverContinueOnError=false -p:PackageDriverIgnoreExitCode=false
 
       - name: Locate package
         id: package
