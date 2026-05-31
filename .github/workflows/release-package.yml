@@ -1,0 +1,69 @@
+name: Release Package
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload-package:
+    runs-on: windows-latest
+    env:
+      MANIFESTUTIL_VERSION: 27.0.24
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Set up NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Install ManifestUtil package
+        shell: pwsh
+        run: |
+          nuget install Crestron.DeviceDrivers.ManifestUtil -Version $env:MANIFESTUTIL_VERSION -OutputDirectory "$env:RUNNER_TEMP\nuget-tools"
+
+      - name: Resolve ManifestUtil path
+        id: manifestutil
+        shell: pwsh
+        run: |
+          $toolRoot = Join-Path $env:RUNNER_TEMP "nuget-tools\Crestron.DeviceDrivers.ManifestUtil.$env:MANIFESTUTIL_VERSION"
+          $manifestUtil = Get-ChildItem -Path $toolRoot -Filter ManifestUtil.exe -Recurse | Select-Object -First 1
+          if ($null -eq $manifestUtil) {
+            throw "ManifestUtil.exe was not found under $toolRoot"
+          }
+
+          "exe_path=$($manifestUtil.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Restore dependencies
+        run: dotnet restore OverkizCrestronDriver.slnx
+
+      - name: Build release package
+        shell: pwsh
+        run: |
+          dotnet build OverkizCrestronDriver.slnx -c Release -p:ManifestUtilExe="${{ steps.manifestutil.outputs.exe_path }}"
+
+      - name: Locate package
+        id: package
+        shell: pwsh
+        run: |
+          $pkg = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\OverKizCrestronDriver\bin\Release" -Filter *.pkg -Recurse | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+          if ($null -eq $pkg) {
+            throw 'No .pkg file was generated in OverKizCrestronDriver/bin/Release.'
+          }
+
+          "pkg_path=$($pkg.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload package asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: ${{ steps.package.outputs.pkg_path }}
+          fail_on_unmatched_files: true

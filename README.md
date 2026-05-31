@@ -141,6 +141,18 @@ The build pipeline:
 4. Runs `PatchMergedAssembly.ps1` against the merged assembly
 5. Packages everything into `Shade_Overkiz_IP_V2.pkg` using Crestron's ManifestUtil
 
+### GitHub Release Asset
+
+GitHub does not receive anything from `bin/` automatically, but the repository now includes a GitHub Actions workflow that can build and attach the `.pkg` when a GitHub Release is published.
+
+The `release-package.yml` workflow runs on `windows-latest`, installs `Crestron.DeviceDrivers.ManifestUtil` from NuGet, builds the solution in `Release`, locates the generated `Shade_Overkiz_IP_V2.pkg`, and uploads it as the release asset automatically.
+
+Typical release flow:
+
+1. Push the release commit and tag.
+2. Publish a GitHub Release for that tag.
+3. Let the workflow build and attach the `.pkg` asset.
+
 ---
 
 ## License
