@@ -1,7 +1,7 @@
 # OverkizCrestronDriver
 
-A **Crestron Home** extension driver that integrates Overkiz-compatible smart-home gateways
-(Somfy TaHoma, Atlantic Cozytouch, Hitachi Hi Kumo, and others) as shade/blind devices,
+A **Crestron Home** platform driver that integrates Overkiz-compatible smart-home gateways
+(Somfy TaHoma, Atlantic Cozytouch, Hitachi Hi Kumo, and others) as managed shade/blind devices,
 supporting both cloud and local LAN connections.
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-blue.svg)](LICENSE)
@@ -13,7 +13,7 @@ supporting both cloud and local LAN connections.
 - **Room aggregate entities** — group multiple shades into a single room tile with per-slot individual controls and shared room-level open/close/stop/my commands
 - **Display name overrides** — map raw Overkiz API labels to human-friendly names via the `ShadeDisplayNames` config field, without affecting room-matching logic
 - **Config-driven room grouping** — define rooms and member assignments via the `RoomGroups` config field; no code changes required when adding or reorganising blinds
-- **Rebuilt on Crestron DeviceDrivers SDK V2** — uses `ReflectedAttributeDriverEntity` and the extension UI mechanism directly, with no RAD base class dependency
+- **Continued SDK V2 entity-model architecture** — keeps the direct `ReflectedAttributeDriverEntity` / extension-UI approach with no RAD base class dependency
 
 > The V1 driver source is preserved in `archive/v1` and tagged `v1.0`.
 
@@ -40,9 +40,10 @@ Home extension driver built entirely on the V2 entity model without a RAD base c
 
 - Cloud connection via Somfy OAuth 2.0 (and other Overkiz-based cloud servers)
 - Local LAN connection using a Somfy developer-mode bearer token
+- Local mode takes precedence when either local field is supplied, and requires both **Gateway IP** and **Local API Token**
 - Automatically discovers all shades/blinds on the gateway and exposes each as a managed child device
 - Per-shade UI with position control (two-way devices), open/stop/close buttons, and optional **My** position button
-- Optional room aggregate entities grouping multiple shades with per-slot subheadings and room-level commands
+- Optional room aggregate entities grouping multiple shades with per-slot labels, room-level open/close/stop/my commands, and room-wide position control
 - Display name overrides for individual shades via `ShadeDisplayNames` config
 - Dynamic rename, add, and delete detection via Overkiz event streaming
 - RTS (one-way radio) shade support with motion state inferred from command execution lifecycle
@@ -62,7 +63,7 @@ Home extension driver built entirely on the V2 entity model without a RAD base c
 ## Installation
 
 1. Build the project in **Release** configuration — this produces `Shade_Overkiz_IP_V2.pkg` in the output folder.
-2. Upload the `.pkg` to your Crestron Home processor via the deployment script or manually via SFTP to `/user/ThirdPartyDrivers/Import`.
+2. Upload the `.pkg` to your Crestron Home processor manually (for example via SFTP to `/user/ThirdPartyDrivers/Import`).
 3. In the Crestron Home **Configure** application, add a new device and select the **Tahoma Gateway** driver.
 4. Fill in the connection configuration:
 
@@ -76,6 +77,8 @@ Home extension driver built entirely on the V2 entity model without a RAD base c
 | Room Groups | Room grouping and member configuration (see Configuration below) |
 | Shade Display Names | Display name overrides for individual shades (see Configuration below) |
 
+If either local-mode field is supplied, the driver treats the configuration as local mode and requires both local values. Otherwise it requires the cloud username and password.
+
 ---
 
 ## Configuration
@@ -85,19 +88,21 @@ Home extension driver built entirely on the V2 entity model without a RAD base c
 Groups shades into room aggregate entities. Format:
 
 ```
-RoomName:Display Title | ApiLabel1:Slot1 Name | ApiLabel2:Slot2 Name
+RoomKey:Display Title=ApiLabel1:Slot1 Name,ApiLabel2:Slot2 Name
 ```
 
 Multiple rooms are separated by semicolons. Example:
 
 ```
-Lounge:Lounge Blinds | Lounge Left Blind:Left | Lounge Center Blind:Centre | Lounge Right Blind:Right
+Lounge:Lounge Blinds=Lounge Left Blind:Left,Lounge Center Blind:Centre,Lounge Right Blind:Right; Bedroom=Bedroom Blind
 ```
 
-- `RoomName` — a unique key used internally for matching (case-insensitive)
+- `RoomKey` — a unique room key used internally for matching (case-insensitive)
 - `Display Title` — the visible label for the room tile
 - `ApiLabel` — the exact name of the shade as it appears in the Overkiz app
 - `Slot Name` — the subheading shown under each slot in the room tile
+
+Room tiles support up to 10 configured slots. Extra configured slots beyond that UI limit are not shown.
 
 ### Shade Display Names
 
@@ -117,19 +122,6 @@ The `ApiLabel` is the raw Overkiz API name used for all room-matching logic. The
 
 ---
 
-## Deployment Script
-
-`Deploy.ps1` automates uploading to the processor:
-
-```powershell
-.\Deploy.ps1 -ProcessorIP 192.168.x.x -User admin -Password yourpassword
-.\Deploy.ps1 -ProcessorIP 192.168.x.x -User admin -Password yourpassword -Clean
-```
-
-`-Clean` removes the old driver entry from the processor's internal manifest and `UsedThirdPartyDrivers` folder before importing the new version — useful during development.
-
----
-
 ## Building from Source
 
 ### Dependencies
@@ -137,6 +129,8 @@ The `ApiLabel` is the raw Overkiz API name used for all room-matching logic. The
 - [OverkizClient](https://www.nuget.org/packages/OverkizClient) NuGet package (restored automatically)
 - [Crestron.DeviceDrivers.DevKit](https://www.nuget.org/packages/Crestron.DeviceDrivers.DevKit) NuGet package
 - [ILRepack](https://github.com/gluck/il-repack) (via `ILRepackMerge.ps1`) to merge dependencies into a self-contained driver DLL
+- `PatchMergedAssembly.ps1` to rewrite merged `System.*` helper types that Crestron Home's Mono sandbox rejects during reflection
+- `ManifestUtil.exe` from the Crestron Driver SDK to produce the final `.pkg`
 
 ### Build
 
@@ -146,9 +140,12 @@ dotnet build -c Release
 
 The build pipeline:
 1. Compiles the driver targeting `net472`
-2. ILRepacks all runtime dependencies into a single `Shade_Overkiz_IP_V2.dll`
-3. Patches the merged assembly
-4. Packages everything into `Shade_Overkiz_IP_V2.pkg` using Crestron's ManifestUtil
+2. Bumps `DriverVersion` and `VersionDate` in `Shade_Overkiz_IP_V2.json`
+   - **Release** builds increment the 3rd component and reset the 4th to `0000`
+   - **Debug** builds increment only the 4th component
+3. ILRepacks runtime dependencies into a single `Shade_Overkiz_IP_V2.dll`
+4. Runs `PatchMergedAssembly.ps1` against the merged assembly
+5. Packages everything into `Shade_Overkiz_IP_V2.pkg` using Crestron's ManifestUtil
 
 ---
 
