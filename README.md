@@ -15,8 +15,6 @@ supporting both cloud and local LAN connections.
 - **Config-driven room grouping** — define rooms and member assignments via the `RoomGroups` config field; no code changes required when adding or reorganising blinds
 - **Continued SDK V2 entity-model architecture** — keeps the direct `ReflectedAttributeDriverEntity` / extension-UI approach with no RAD base class dependency
 
-> The V1 driver source is preserved in `archive/v1` and tagged `v1.0`.
-
 ---
 
 ## Driver Architecture
