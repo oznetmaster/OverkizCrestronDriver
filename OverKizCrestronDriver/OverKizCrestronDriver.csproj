@@ -26,7 +26,6 @@
 	<None Include="IncludeInPkg\room\uidefinitions\UiDefinition.xml" />
 	<None Include="IncludeInPkg\Translations\en-US.json" />
 	<None Include="BumpDriverVersion.ps1" />
-	<None Include="Deploy.ps1" />
 	<None Include="OverKizCrestronDriver.csproj.user" />
   </ItemGroup>
 
@@ -96,16 +95,6 @@
 	<Copy SourceFiles="@(IncludeInPkgFiles)" DestinationFiles="@(IncludeInPkgFiles->'$(TargetDir)patched\IncludeInPkg\%(RecursiveDir)%(Filename)%(Extension)')" />
 	<Exec Command="&quot;$(ManifestUtilExe)&quot; --file &quot;$(TargetDir)patched\$(AssemblyName).dll&quot; --lib &quot;$(TargetDir.TrimEnd('\'))&quot; --output &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="true" IgnoreExitCode="true" />
   </Target>
-
-  <!-- DeployDriver: uploads .pkg to processor (set DeployAfterBuild=true in .user file) -->
-  <Target Name="DeployDriver" AfterTargets="PackageDriver" Condition="'$(DeployAfterBuild)' == 'true' And '$(Configuration)' == 'Debug'" Inputs="$(TargetDir)$(AssemblyName).pkg" Outputs="$(TargetDir)$(AssemblyName).deployed.stamp">
-	<PropertyGroup>
-	  <PkgFile>$(TargetDir)$(AssemblyName).pkg</PkgFile>
-	  <DeployScriptPath>$(MSBuildProjectDirectory)\Deploy.ps1</DeployScriptPath>
-	</PropertyGroup>
-	<Message Text="Deploying $(AssemblyName).pkg to $(CrestronHomeIP)..." Importance="High" />
-	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(DeployScriptPath)&quot; -PkgFile &quot;$(PkgFile)&quot; -ProcessorIP &quot;$(CrestronHomeIP)&quot; -User &quot;$(CrestronHomeFtpUser)&quot; -Password &quot;$(CrestronHomeSftpPassword)&quot; -Clean" ContinueOnError="true" />
-	<Touch Files="$(TargetDir)$(AssemblyName).deployed.stamp" AlwaysCreate="true" />
-  </Target>
+  <Import Project="OverKizCrestronDriver.Local.targets" Condition="Exists('OverKizCrestronDriver.Local.targets')" />
 
 </Project>
