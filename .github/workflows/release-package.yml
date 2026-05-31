@@ -17,6 +17,7 @@ jobs:
     runs-on: windows-latest
     env:
       MANIFESTUTIL_VERSION: 27.0.24
+      WORD_INTEROP_VERSION: 15.0.4797.1004
       NET472_REFERENCE_ASSEMBLIES: C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.7.2
       NETFX_RUNTIME_DIR: C:\Windows\Microsoft.NET\Framework64\v4.0.30319
     steps:
@@ -42,6 +43,11 @@ jobs:
         run: |
           nuget install Crestron.DeviceDrivers.ManifestUtil -Version $env:MANIFESTUTIL_VERSION -OutputDirectory "$env:RUNNER_TEMP\nuget-tools"
 
+      - name: Install Word interop package
+        shell: pwsh
+        run: |
+          nuget install Microsoft.Office.Interop.Word -Version $env:WORD_INTEROP_VERSION -OutputDirectory "$env:RUNNER_TEMP\nuget-tools"
+
       - name: Resolve ManifestUtil path
         id: manifestutil
         shell: pwsh
@@ -51,6 +57,14 @@ jobs:
           if ($null -eq $manifestUtil) {
             throw "ManifestUtil.exe was not found under $toolRoot"
           }
+
+          $wordInteropRoot = Join-Path $env:RUNNER_TEMP "nuget-tools\Microsoft.Office.Interop.Word.$env:WORD_INTEROP_VERSION"
+          $wordInterop = Get-ChildItem -Path $wordInteropRoot -Filter Microsoft.Office.Interop.Word.dll -Recurse | Select-Object -First 1
+          if ($null -eq $wordInterop) {
+            throw "Microsoft.Office.Interop.Word.dll was not found under $wordInteropRoot"
+          }
+
+          Copy-Item $wordInterop.FullName (Join-Path $manifestUtil.Directory.FullName 'Microsoft.Office.Interop.Word.dll') -Force
 
           "exe_path=$($manifestUtil.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
