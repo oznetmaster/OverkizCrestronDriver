@@ -26,6 +26,7 @@
 	<None Include="IncludeInPkg\room\uidefinitions\UiDefinition.xml" />
 	<None Include="IncludeInPkg\Translations\en-US.json" />
 	<None Include="BumpDriverVersion.ps1" />
+	<None Include="StartReleaseCycle.ps1" />
 	<None Include="OverKizCrestronDriver.csproj.user" />
   </ItemGroup>
 
