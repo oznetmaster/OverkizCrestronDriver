@@ -5,6 +5,7 @@ CONFIGURE_PRO_BETA_REPORT.md
 GPT55_DIAGNOSIS.md
 OverKizCrestronDriver/OverKizCrestronDriver.Local.targets
 archive/v1/OverKizCrestronDriver/OverKizCrestronDriver.Local.targets
+OverKizCrestronDriver/ResetAndWait.ps1
 OverKizCrestronDriver/FetchLatestLog.ps1
 OverKizCrestronDriver/ParseLatestLog.ps1
 OverKizCrestronDriver/Deploy.ps1
