@@ -8,15 +8,6 @@ supporting both cloud and local LAN connections.
 
 ---
 
-## What is New in V2
-
-- **Room aggregate entities** — group multiple shades into a single room tile with per-slot individual controls and shared room-level open/close/stop/my commands
-- **Display name overrides** — map raw Overkiz API labels to human-friendly names via the `ShadeDisplayNames` config field, without affecting room-matching logic
-- **Config-driven room grouping** — define rooms and member assignments via the `RoomGroups` config field; no code changes required when adding or reorganising blinds
-- **Continued SDK V2 entity-model architecture** — keeps the direct `ReflectedAttributeDriverEntity` / extension-UI approach with no RAD base class dependency
-
----
-
 ## Driver Architecture
 
 This driver is a **platform driver** — it connects to the Overkiz API, discovers all shades/blinds
