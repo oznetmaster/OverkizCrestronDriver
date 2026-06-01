@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -117,9 +118,16 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	private void Log (string msg) =>
 		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
 
+	private void LogError (string msg) =>
+		_logger?.Log (ControllerId, LogEntryLevel.Error, msg);
+
+	[Conditional ("DEBUG")]
+	private void DebugLog (string msg) =>
+		Log (msg);
+
 	private void TraceNotify (string propertyName, DriverEntityValue value)
 		{
-		Log ("NOTIFY " + propertyName + " -> " + value);
+		DebugLog ("NOTIFY " + propertyName + " -> " + value);
 		NotifyPropertyChanged (propertyName, value);
 		}
 
@@ -127,13 +135,13 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		{
 		if (_uiDefinition == null)
 			{
-			Log (source + ": uiDefinition unavailable");
+			DebugLog (source + ": uiDefinition unavailable");
 			return;
 			}
 
-		Log (source + ": reading uiDefinition value");
+		DebugLog (source + ": reading uiDefinition value");
 		DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
-		Log (source + ": uiDefinition hasValue=" + uiValue.HasValue);
+		DebugLog (source + ": uiDefinition hasValue=" + uiValue.HasValue);
 		if (uiValue.HasValue)
 			TraceNotify (UiDefinitionProperty.Name, uiValue.Value);
 		}
@@ -158,12 +166,12 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 					commandEntries.Add ((attr.Id ?? method.Name) + "<=" + method.Name);
 				}
 
-			Log ("EntitySurface properties(" + propertyEntries.Count + "): " + string.Join (", ", propertyEntries));
-			Log ("EntitySurface commands(" + commandEntries.Count + "): " + string.Join (", ", commandEntries));
+			DebugLog ("EntitySurface properties(" + propertyEntries.Count + "): " + string.Join (", ", propertyEntries));
+			DebugLog ("EntitySurface commands(" + commandEntries.Count + "): " + string.Join (", ", commandEntries));
 			}
 		catch (Exception ex)
 			{
-			Log ("EntitySurface logging failed: " + ex.Message);
+			DebugLog ("EntitySurface logging failed: " + ex.Message);
 			}
 		}
 
@@ -247,7 +255,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	[EntityCommandMetadata (Programmable = true)]
 	public void Open ()
 		{
-		Log ("COMMAND open invoked");
+		DebugLog ("COMMAND open invoked");
 		_openAll ();
 		}
 
@@ -255,7 +263,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	[EntityCommandMetadata (Programmable = true)]
 	public void Close ()
 		{
-		Log ("COMMAND close invoked");
+		DebugLog ("COMMAND close invoked");
 		_closeAll ();
 		}
 
@@ -263,7 +271,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	[EntityCommandMetadata (Programmable = true)]
 	public void Stop ()
 		{
-		Log ("COMMAND stop invoked");
+		DebugLog ("COMMAND stop invoked");
 		_stopAll ();
 		}
 
@@ -271,7 +279,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	[EntityCommandMetadata (Programmable = true)]
 	public void My ()
 		{
-		Log ("COMMAND my invoked");
+		DebugLog ("COMMAND my invoked");
 		_myAll ();
 		}
 
@@ -280,7 +288,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	public void SetOpenPercent (
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
 		{
-		Log ("COMMAND setOpenPercent invoked value=" + value);
+		DebugLog ("COMMAND setOpenPercent invoked value=" + value);
 		_setOpenPercentAll (value);
 		}
 
@@ -309,7 +317,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			return;
 			}
 
-		Log ("StartPolling: pushing initial notifications");
+		DebugLog ("StartPolling: pushing initial notifications");
 
 		TraceUiDefinitionNotification ("StartPolling");
 
@@ -402,7 +410,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			}
 		catch (Exception ex)
 			{
-			Log ("UiDefinition load failed: " + ex.Message);
+			LogError ("UiDefinition load failed: " + ex.Message);
 			}
 
 		AddProperty (this, UiDefinitionProperty.Name, _uiDefinition);

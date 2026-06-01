@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -49,9 +51,16 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	private void Log (string msg) =>
 		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
 
+	private void LogError (string msg) =>
+		_logger?.Log (ControllerId, LogEntryLevel.Error, msg);
+
+	[Conditional ("DEBUG")]
+	private void DebugLog (string msg) =>
+		Log (msg);
+
 	private void TraceNotify (string propertyName, DriverEntityValue value)
 		{
-		Log ("NOTIFY " + propertyName + " -> " + value);
+		DebugLog ("NOTIFY " + propertyName + " -> " + value);
 		NotifyPropertyChanged (propertyName, value);
 		}
 
@@ -59,20 +68,20 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		{
 		if (_uiDefinition == null)
 			{
-			Log (source + ": uiDefinition unavailable");
+			DebugLog (source + ": uiDefinition unavailable");
 			return;
 			}
 
-		Log (source + ": reading uiDefinition value");
+		DebugLog (source + ": reading uiDefinition value");
 		DriverEntityValue? uiValue = _uiDefinition.GetValue (null, null);
-		Log (source + ": uiDefinition hasValue=" + uiValue.HasValue);
+		DebugLog (source + ": uiDefinition hasValue=" + uiValue.HasValue);
 		if (uiValue.HasValue)
 			TraceNotify (UiDefinitionProperty.Name, uiValue.Value);
 		}
 
 	private BoundItem<CommandInstance> TraceGetCommand (string commandName)
 		{
-		Log ("GetCommand requested: commandName='" + commandName + "'");
+		DebugLog ("GetCommand requested: commandName='" + commandName + "'");
 		return GetCommand (commandName);
 		}
 
@@ -96,12 +105,12 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 					commandEntries.Add ((attr.Id ?? method.Name) + "<=" + method.Name);
 				}
 
-			Log ("EntitySurface properties(" + propertyEntries.Count + "): " + string.Join (", ", propertyEntries));
-			Log ("EntitySurface commands(" + commandEntries.Count + "): " + string.Join (", ", commandEntries));
+			DebugLog ("EntitySurface properties(" + propertyEntries.Count + "): " + string.Join (", ", propertyEntries));
+			DebugLog ("EntitySurface commands(" + commandEntries.Count + "): " + string.Join (", ", commandEntries));
 			}
 		catch (Exception ex)
 			{
-			Log ("EntitySurface logging failed: " + ex.Message);
+			DebugLog ("EntitySurface logging failed: " + ex.Message);
 			}
 		}
 
@@ -396,7 +405,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	[EntityCommandMetadata (Programmable = true)]
 	public void Open ()
 		{
-		Log ("COMMAND open invoked");
+		DebugLog ("COMMAND open invoked");
 		_sendCommand ("open");
 		}
 
@@ -404,7 +413,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	[EntityCommandMetadata (Programmable = true)]
 	public void Close ()
 		{
-		Log ("COMMAND close invoked");
+		DebugLog ("COMMAND close invoked");
 		_sendCommand ("close");
 		}
 
@@ -412,7 +421,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	[EntityCommandMetadata (Programmable = true)]
 	public void Stop ()
 		{
-		Log ("COMMAND stop invoked");
+		DebugLog ("COMMAND stop invoked");
 		_sendCommand ("stop");
 		}
 
@@ -420,7 +429,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	[EntityCommandMetadata (Programmable = true)]
 	public void My ()
 		{
-		Log ("COMMAND my invoked");
+		DebugLog ("COMMAND my invoked");
 		_sendCommand ("my");
 		}
 
@@ -429,7 +438,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	public void SetOpenPercent (
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
 		{
-		Log ("COMMAND setOpenPercent invoked value=" + value);
+		DebugLog ("COMMAND setOpenPercent invoked value=" + value);
 		// Overkiz closure is the inverse of open: 0 = open, 100 = closed.
 		var closure = 100 - Math.Max (0, Math.Min (100, value));
 		_sendCommandWithParams ("setClosure", [closure]);
@@ -465,8 +474,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 		// Load the shared UI definition
 		Log ("UiDefinition: driverDataDirectoryPath=" + driverDataDirectoryPath);
-		var uiDir = System.IO.Path.Combine (driverDataDirectoryPath, "uidefinitions");
-		Log ("UiDefinition: looking in " + uiDir + " exists=" + System.IO.Directory.Exists (uiDir));
+		var uiDir = Path.Combine (driverDataDirectoryPath, "uidefinitions");
+		Log ("UiDefinition: looking in " + uiDir + " exists=" + Directory.Exists (uiDir));
 		_uiDefinition = UiDefinitionProperty.LoadFromDirectoryIfExists (
 			driverDataDirectoryPath,
 			resources.InitLogger,
@@ -480,7 +489,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			}
 		catch (Exception ex)
 			{
-			Log (">>> AddProperty UiDefinition FAILED: " + ex.Message);
+			LogError (">>> AddProperty UiDefinition FAILED: " + ex.Message);
 			}
 
 		// Wire up the extension command executors so that the Crestron Home extension
@@ -494,7 +503,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			}
 		catch (Exception ex)
 			{
-			Log (">>> ExtensionDoCommandExecutor FAILED: " + ex.Message);
+			LogError (">>> ExtensionDoCommandExecutor FAILED: " + ex.Message);
 			}
 
 		try
@@ -506,7 +515,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			}
 		catch (Exception ex)
 			{
-			Log (">>> ExtensionSetPropertyValueExecutor FAILED: " + ex.Message);
+			LogError (">>> ExtensionSetPropertyValueExecutor FAILED: " + ex.Message);
 			}
 
 		LogDeclaredEntitySurface ();

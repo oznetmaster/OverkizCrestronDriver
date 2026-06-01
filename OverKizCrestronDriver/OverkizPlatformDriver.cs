@@ -22,7 +22,6 @@ using OverKizApi.Models;
 using Crestron.DeviceDrivers.EntityModel.Logging;
 
 using OverkizCommand = OverKizApi.Models.Command;
-using System.IO;
 
 namespace OverKiz.CrestronDriver;
 
@@ -86,6 +85,15 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	// ── Logger ────────────────────────────────────────────────────────────
 
 	private readonly DriverControllerLogger _logger;
+
+	private void Log (string msg) =>
+		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
+
+	private void LogWarning (string msg) =>
+		_logger?.Log (ControllerId, LogEntryLevel.Warning, msg);
+
+	private void LogError (string msg) =>
+		_logger?.Log (ControllerId, LogEntryLevel.Error, msg);
 
 	// ── Driver creation context
 
@@ -212,31 +220,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		DriverImplementationResources resources)
 		: base (DriverController.RootControllerId)
 		{
-		Log ("Constructor START");
 		_logger = args.Logger;
 		_args = args;
 		_resources = resources;
-
-		// TEMP DIAG: write DriverId and Logger presence to file so we can see the actual key value
-		try
-			{
-			var diagDir = args.DriverDataDirectoryPath ?? "/tmp";
-			if (!Directory.Exists (diagDir))
-				_ = Directory.CreateDirectory (diagDir);
-			var diagContent = $"DriverId={args.DriverId}\nControllerId={DriverController.RootControllerId}\nLogger={(args.Logger == null ? "NULL" : args.Logger.GetType ().FullName)}\nDriverDataDirectoryPath={args.DriverDataDirectoryPath}\n";
-			File.WriteAllText (Path.Combine (diagDir, "diag_logger.txt"), diagContent);
-			// Also try /tmp as fallback
-			File.WriteAllText ("/tmp/overkiz_diag.txt", diagContent);
-			}
-		catch (Exception diagEx)
-			{
-			// Write failure info somewhere we can read it
-			try
-				{
-				File.WriteAllText ("/tmp/overkiz_diag_error.txt", diagEx.ToString ());
-				}
-			catch { }
-			}
 
 		// Single HttpClient with KeepAlive disabled to prevent memory leak (SDK guideline).
 		// CreateLocalHttpClientHandler() bypasses TLS validation for the self-signed cert on local gateways;
@@ -255,8 +241,6 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			null);
 
 		ManagedDevices = new Dictionary<string, PlatformManagedDevice> ();
-
-		Log ("Constructor END");
 		}
 
 	public override void Dispose ()
@@ -523,7 +507,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 							_hasConnectedWithAppliedConfig = false;
 						}
 
-					Log ("Connect failed: " + ex);
+					LogError ("Connect failed: " + ex);
 					}
 				finally
 					{
@@ -556,20 +540,34 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			{
 			foreach (IOverkizEntity e in _entities.Values)
 				{
+				#if DEBUG
 				Log ("StartAllChildPolling - StartPolling for " + e.ControllerId + " type=" + e.GetType ().Name);
+				#endif
 				if (e is OverkizShadeEntity shade)
+					{
+					#if DEBUG
 					Log ("StartAllChildPolling - shade pre-state id=" + shade.ControllerId + " online=" + shade.OnlineIndicatorIsOnline + " ready=" + shade.ReadyIndicatorIsReady + " label='" + shade.DeviceLabel + "'");
+					#endif
+					}
 				e.StartPolling (_workQueue);
 				if (e is OverkizShadeEntity startedShade)
+					{
+					#if DEBUG
 					Log ("StartAllChildPolling - shade post-state id=" + startedShade.ControllerId + " online=" + startedShade.OnlineIndicatorIsOnline + " ready=" + startedShade.ReadyIndicatorIsReady + " label='" + startedShade.DeviceLabel + "'");
+					#endif
+					}
 				}
 
 			foreach (OverkizRoomEntity r in _roomEntities.Values)
 				{
+				#if DEBUG
 				Log ("StartAllChildPolling - StartPolling for room " + r.ControllerId);
 				Log ("StartAllChildPolling - room pre-state id=" + r.ControllerId + " online=" + r.OnlineIndicatorIsOnline + " ready=" + r.ReadyIndicatorIsReady + " label='" + r.DeviceLabel + "'");
+				#endif
 				r.StartPolling (_workQueue);
+				#if DEBUG
 				Log ("StartAllChildPolling - room post-state id=" + r.ControllerId + " online=" + r.OnlineIndicatorIsOnline + " ready=" + r.ReadyIndicatorIsReady + " label='" + r.DeviceLabel + "'");
+				#endif
 				}
 			}
 		}
@@ -1490,7 +1488,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					}
 				catch (Exception ex)
 					{
-					Log ("Event loop: fetch error – " + ex.Message + "; retrying in " + RETRY_DELAY_MS + "ms");
+					LogWarning ("Event loop: fetch error – " + ex.Message + "; retrying in " + RETRY_DELAY_MS + "ms");
 
 					try
 						{
@@ -1508,7 +1506,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			}
 		catch (Exception ex)
 			{
-			Log ("Event loop: fatal error – " + ex);
+			LogError ("Event loop: fatal error – " + ex);
 			}
 		finally
 			{
@@ -1519,7 +1517,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				}
 			catch (Exception ex)
 				{
-				Log ("Event loop: unregister error – " + ex.Message);
+				LogWarning ("Event loop: unregister error – " + ex.Message);
 				}
 			}
 		}
@@ -1656,14 +1654,14 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 			if (device == null)
 				{
-				Log ("Event: DeviceCreated – device not found in refresh: " + ev.DeviceUrl);
+				LogWarning ("Event: DeviceCreated – device not found in refresh: " + ev.DeviceUrl);
 				return;
 				}
 
 			IOverkizEntity entity = TryCreateEntity (ev.DeviceUrl, device);
 			if (entity == null)
 				{
-				Log ("Event: DeviceCreated – no entity factory match for: " + ev.DeviceUrl);
+				LogWarning ("Event: DeviceCreated – no entity factory match for: " + ev.DeviceUrl);
 				return;
 				}
 
@@ -1752,7 +1750,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			}
 		catch (Exception ex)
 			{
-			Log ("Event: DeviceCreated – error: " + ex.ToString ());
+			LogError ("Event: DeviceCreated – error: " + ex.ToString ());
 			}
 		}
 
@@ -2040,7 +2038,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					}
 				catch (Exception ex)
 					{
-					Log ("SendDeviceCommand failed: " + ex.ToString ());
+					LogError ("SendDeviceCommand failed: " + ex.ToString ());
 					}
 			});
 
@@ -2058,7 +2056,5 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			_ = chars.Append (char.IsLetterOrDigit (c) ? c : '_');
 		return chars.ToString ();
 		}
-
-	private void Log (string message) => _logger?.Log (_args.DriverId, LogEntryLevel.Info, message);
 	}
 
