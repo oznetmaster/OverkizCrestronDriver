@@ -425,16 +425,12 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		_sendCommand ("stop");
 		}
 
-	[EntityCommand (Id = "my", FriendlyName = "My")]
-	[EntityCommandMetadata (Programmable = true)]
 	public void My ()
 		{
 		DebugLog ("COMMAND my invoked");
 		_sendCommand ("my");
 		}
 
-	[EntityCommand (Id = "setOpenPercent", FriendlyName = "Set Open %")]
-	[EntityCommandMetadata (Programmable = true)]
 	public void SetOpenPercent (
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
 		{
@@ -469,6 +465,9 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		_sendCommand = sendCommand ?? throw new ArgumentNullException (nameof (sendCommand));
 		_sendCommandWithParams = sendCommandWithParams ?? throw new ArgumentNullException (nameof (sendCommandWithParams));
 		_logger = logger;
+		var programmableMeta = new DriverEntityCommandMetadata (true, false);
+		var noName = new DriverEntityLocalizedString (null, null);
+		var noResult = new DriverEntityCommandResult (false, null);
 
 		Log ("Constructed: controllerId=" + controllerId + " isOneWay=" + isOneWay);
 
@@ -497,6 +496,45 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		try
 			{
 			Log (">>> About to create ExtensionDoCommandExecutor");
+			if (HasMyCommand)
+				{
+				var myDef = new DriverEntityCommandDefinition (null, null, null, new DriverEntityLocalizedString ("My", null));
+				AddCommand (this, "my", new DelegateCommandInstance (
+					"my",
+					myDef,
+					programmableMeta,
+					(id, inst, args, lookup, cb) =>
+						{
+						My ();
+						cb?.Invoke (noResult);
+						},
+					null));
+				}
+
+			if (!IsOneWay)
+				{
+				var intRange = new DriverEntityValueRange (0.0, 100.0, null);
+				var intType = new DriverEntityTypeDefinition (DriverEntityValueType.Integer, DriverEntityValueType.Uninitialized, null, intRange, null, null, null);
+				var pctParamDef = new DriverEntityParameterDefinition (noName, null, intType, null, null, null, null, false, false, null);
+				var pctParams = new Dictionary<string, DriverEntityParameterDefinition> { ["value"] = pctParamDef };
+				var pctCmdDef = new DriverEntityCommandDefinition (pctParams, intType, null, new DriverEntityLocalizedString ("Set Open %", null));
+				AddCommand (this, "setOpenPercent", new DelegateCommandInstance (
+					"setOpenPercent",
+					pctCmdDef,
+					programmableMeta,
+					(id, inst, args, lookup, cb) =>
+						{
+						if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
+							{
+							_ = pv.TryGetValue (out int pct);
+							SetOpenPercent (pct);
+							}
+
+						cb?.Invoke (noResult);
+						},
+					["value"]));
+				}
+
 			var doCommand = new ExtensionDoCommandExecutor (TraceGetCommand, resources.Logger);
 			AddCommand (this, ExtensionDoCommandExecutor.CommandName, doCommand);
 			Log (">>> ExtensionDoCommandExecutor succeeded");

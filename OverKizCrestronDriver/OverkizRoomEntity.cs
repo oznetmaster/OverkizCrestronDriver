@@ -283,9 +283,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		_myAll ();
 		}
 
-	[EntityCommand (Id = "setOpenPercent", FriendlyName = "Set Open % (All)")]
-	[EntityCommandMetadata (Programmable = true)]
-	public void SetOpenPercent (
+	public void SetOpenPercentAll (
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
 		{
 		DebugLog ("COMMAND setOpenPercent invoked value=" + value);
@@ -416,6 +414,46 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		AddProperty (this, UiDefinitionProperty.Name, _uiDefinition);
 
 		// Register extension command executors.
+		if (HasMy)
+			{
+			var myDef = new DriverEntityCommandDefinition (null, null, null, new DriverEntityLocalizedString ("My All", null));
+			AddCommand (this, "my", new DelegateCommandInstance (
+				"my",
+				myDef,
+				new DriverEntityCommandMetadata (true, false),
+				(id, inst, args, lookup, cb) =>
+					{
+					My ();
+					cb?.Invoke (new DriverEntityCommandResult (false, null));
+					},
+				null));
+			}
+
+		if (IsTwoWay)
+			{
+			var intRange = new DriverEntityValueRange (0.0, 100.0, null);
+			var intType = new DriverEntityTypeDefinition (DriverEntityValueType.Integer, DriverEntityValueType.Uninitialized, null, intRange, null, null, null);
+			var noName = new DriverEntityLocalizedString (null, null);
+			var pctParamDef = new DriverEntityParameterDefinition (noName, null, intType, null, null, null, null, false, false, null);
+			var pctParams = new Dictionary<string, DriverEntityParameterDefinition> { ["value"] = pctParamDef };
+			var pctCmdDef = new DriverEntityCommandDefinition (pctParams, intType, null, new DriverEntityLocalizedString ("Set Open % (All)", null));
+			AddCommand (this, "setOpenPercent", new DelegateCommandInstance (
+				"setOpenPercent",
+				pctCmdDef,
+				new DriverEntityCommandMetadata (true, false),
+				(id, inst, args, lookup, cb) =>
+					{
+					if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
+						{
+						_ = pv.TryGetValue (out int pct);
+						SetOpenPercentAll (pct);
+						}
+
+					cb?.Invoke (new DriverEntityCommandResult (false, null));
+					},
+				["value"]));
+			}
+
 		var doCommand = new ExtensionDoCommandExecutor (GetCommand, resources.Logger);
 		Log ("Registering ExtensionDoCommandExecutor");
 		AddCommand (this, ExtensionDoCommandExecutor.CommandName, doCommand);
@@ -446,6 +484,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		var noName = new DriverEntityLocalizedString (null, null);
 		var noDef = new DriverEntityCommandDefinition (null, null, null, noName);
 		var noMeta = new DriverEntityCommandMetadata (false, false);
+		var programmableMeta = new DriverEntityCommandMetadata (true, false);
 
 		// Type definitions for int (0–100), string, and bool.
 		var intRange = new DriverEntityValueRange (0.0, 100.0, null);
@@ -462,10 +501,21 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		for (var i = 0; i < MAX_SLOTS; i++)
 			{
 			var capturedIdx = i;
+			var slotConfigured = i < _slotConfigs.Count && !string.IsNullOrWhiteSpace (_slotConfigs[i].ApiLabel);
+			var slotMember = slotConfigured ? GetSlotMember (capturedIdx) : null;
+			var slotHasMy = slotMember?.HasMy ?? false;
+			var slotIsTwoWay = slotMember?.IsTwoWay ?? false;
+			var slotLabel = slotConfigured
+				? (!string.IsNullOrWhiteSpace (_slotConfigs[i].DisplayName) ? _slotConfigs[i].DisplayName : _slotConfigs[i].ApiLabel)
+				: "Blind " + (i + 1);
+			var openDef = new DriverEntityCommandDefinition (null, null, null, new DriverEntityLocalizedString ("Open " + slotLabel, null));
+			var closeDef = new DriverEntityCommandDefinition (null, null, null, new DriverEntityLocalizedString ("Close " + slotLabel, null));
+			var stopDef = new DriverEntityCommandDefinition (null, null, null, new DriverEntityLocalizedString ("Stop " + slotLabel, null));
+			var commandMeta = slotConfigured ? programmableMeta : noMeta;
 
 			// ── Commands — delegate through to current member in this slot ───
 
-			AddCommand (this, "open_" + i, new DelegateCommandInstance ("open_" + i, noDef, noMeta,
+			AddCommand (this, "open_" + i, new DelegateCommandInstance ("open_" + i, openDef, commandMeta,
 				(id, inst, args, lookup, cb) =>
 					{
 					Log ("COMMAND open_" + capturedIdx + " invoked");
@@ -473,7 +523,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 						cb?.Invoke (ok);
 					}, null));
 
-			AddCommand (this, "close_" + i, new DelegateCommandInstance ("close_" + i, noDef, noMeta,
+			AddCommand (this, "close_" + i, new DelegateCommandInstance ("close_" + i, closeDef, commandMeta,
 				(id, inst, args, lookup, cb) =>
 					{
 					Log ("COMMAND close_" + capturedIdx + " invoked");
@@ -481,7 +531,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 						cb?.Invoke (ok);
 					}, null));
 
-			AddCommand (this, "stop_" + i, new DelegateCommandInstance ("stop_" + i, noDef, noMeta,
+			AddCommand (this, "stop_" + i, new DelegateCommandInstance ("stop_" + i, stopDef, commandMeta,
 				(id, inst, args, lookup, cb) =>
 					{
 					Log ("COMMAND stop_" + capturedIdx + " invoked");
@@ -489,29 +539,36 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 						cb?.Invoke (ok);
 					}, null));
 
-			AddCommand (this, "my_" + i, new DelegateCommandInstance ("my_" + i, noDef, noMeta,
-				(id, inst, args, lookup, cb) =>
-					{
-					Log ("COMMAND my_" + capturedIdx + " invoked");
-						GetSlotMember (capturedIdx)?.My ();
-						cb?.Invoke (ok);
-					}, null));
+			if (slotConfigured && slotHasMy)
+				{
+				var myDef = new DriverEntityCommandDefinition (null, null, null, new DriverEntityLocalizedString ("My " + slotLabel, null));
+				AddCommand (this, "my_" + i, new DelegateCommandInstance ("my_" + i, myDef, programmableMeta,
+					(id, inst, args, lookup, cb) =>
+						{
+						Log ("COMMAND my_" + capturedIdx + " invoked");
+							GetSlotMember (capturedIdx)?.My ();
+							cb?.Invoke (ok);
+						}, null));
+				}
 
 			var pctParamDef = new DriverEntityParameterDefinition (noName, null, intType, null, null, null, null, false, false, null);
 			var pctParams = new Dictionary<string, DriverEntityParameterDefinition> { ["value"] = pctParamDef };
-			var pctCmdDef = new DriverEntityCommandDefinition (pctParams, intType, null, noName);
-			AddCommand (this, "setOpenPercent_" + i, new DelegateCommandInstance ("setOpenPercent_" + i, pctCmdDef, noMeta,
-				(id, inst, args, lookup, cb) =>
-					{
-					Log ("COMMAND setOpenPercent_" + capturedIdx + " invoked");
-						if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
-							{
-							_ = pv.TryGetValue (out int pct);
-							GetSlotMember (capturedIdx)?.SetOpenPercent (pct);
-							}
+			if (slotConfigured && slotIsTwoWay)
+				{
+				var pctCmdDef = new DriverEntityCommandDefinition (pctParams, intType, null, new DriverEntityLocalizedString ("Set Open % " + slotLabel, null));
+				AddCommand (this, "setOpenPercent_" + i, new DelegateCommandInstance ("setOpenPercent_" + i, pctCmdDef, programmableMeta,
+					(id, inst, args, lookup, cb) =>
+						{
+						Log ("COMMAND setOpenPercent_" + capturedIdx + " invoked");
+							if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
+								{
+								_ = pv.TryGetValue (out int pct);
+								GetSlotMember (capturedIdx)?.SetOpenPercent (pct);
+								}
 
-						cb?.Invoke (ok);
-					}, ["value"]));
+							cb?.Invoke (ok);
+						}, ["value"]));
+				}
 
 			// ── Properties ───────────────────────────────────────────────
 
