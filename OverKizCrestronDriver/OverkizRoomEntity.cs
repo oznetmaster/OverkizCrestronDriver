@@ -100,7 +100,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	// The configured slot list for this room (from RoomGroups config).
 	// May have fewer than MaxSlots entries; extra slots stay hidden.
 	// ApiLabel is used for matching; DisplayName is shown in the subheading.
-	private readonly IReadOnlyList<RoomMemberConfig> _slotConfigs;
+	private IReadOnlyList<RoomMemberConfig> _slotConfigs;
 
 	// ── Dynamic per-member property values ───────────────────────────────
 	// "openPercent_N"   → current open percent (int)
@@ -573,9 +573,11 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 	/// The UI XML is never rewritten — only the <c>visible_N</c> boolean properties
 	/// are updated to show/hide the slots whose blinds are currently present.
 	/// </summary>
-	public void UpdateMembers (IReadOnlyList<RoomMember> newMembers)
+	public void UpdateMembers (IReadOnlyList<RoomMember> newMembers, IReadOnlyList<RoomMemberConfig> slotConfigs = null)
 		{
 		_members = newMembers ?? throw new ArgumentNullException (nameof (newMembers));
+		if (slotConfigs != null)
+			_slotConfigs = slotConfigs;
 
 		// Rebuild a label → member map.
 		var labelToMember = new Dictionary<string, RoomMember> (StringComparer.OrdinalIgnoreCase);
@@ -589,6 +591,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			{
 			var configured = i < _slotConfigs.Count;
 			var apiLabel   = configured ? _slotConfigs[i].ApiLabel : string.Empty;
+			var dispName   = configured ? _slotConfigs[i].DisplayName : string.Empty;
 			RoomMember m   = null;
 			var present    = configured && labelToMember.TryGetValue (apiLabel, out m);
 			if (present)
@@ -598,6 +601,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 				}
 
 			_memberProps["openPercent_" + i] = new DriverEntityValue (present ? (m?.GetOpenPercent?.Invoke () ?? 0) : 0);
+			_memberProps["shadeLabel_" + i] = new DriverEntityValue (dispName);
 			_memberProps["visible_" + i] = new DriverEntityValue (present);
 			_memberProps["visible_slider_" + i] = new DriverEntityValue (present && m != null && m.IsTwoWay);
 			_memberProps["visible_my_" + i] = new DriverEntityValue (present && m != null && m.HasMy);
@@ -610,6 +614,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			for (var i = 0; i < MAX_SLOTS; i++)
 				{
 				NotifyPropertyChanged ("openPercent_" + i, _memberProps["openPercent_" + i]);
+				NotifyPropertyChanged ("shadeLabel_" + i, _memberProps["shadeLabel_" + i]);
 				NotifyPropertyChanged ("visible_" + i, _memberProps["visible_" + i]);
 				NotifyPropertyChanged ("visible_slider_" + i, _memberProps["visible_slider_" + i]);
 				NotifyPropertyChanged ("visible_my_" + i, _memberProps["visible_my_" + i]);

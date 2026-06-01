@@ -958,11 +958,14 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		out OverkizRoomEntity room)
 		{
 		List<RoomMember> members = BuildMemberList (placeOid);
+		IReadOnlyList<RoomMemberConfig> slotConfigs = _roomGroups.TryGetValue (placeOid, out RoomGroupEntry entry)
+			? entry.Members
+			: [.. members.Select (m => new RoomMemberConfig (m.Label, m.DisplayName))];
 
 		if (_roomEntities.TryGetValue (placeOid, out room))
 			{
 			// Entity already registered — update members in place.
-			room.UpdateMembers (members);
+			room.UpdateMembers (members, slotConfigs);
 			Log ("RebuildRoomMembersLocked: updated in place placeOid=" + placeOid + " members=" + members.Count);
 			return true;
 			}
