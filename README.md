@@ -37,6 +37,8 @@ Home extension driver built entirely on the V2 entity model without a RAD base c
 - Dynamic rename, add, and delete detection via Overkiz event streaming
 - RTS (one-way radio) shade support with motion state inferred from command execution lifecycle
 
+Compatibility note: the driver is intended for Overkiz-compatible gateways, but the current implementation has only been validated by the author with a Somfy TaHoma gateway. Other Overkiz-compatible gateways may work but have not yet been directly tested with this Crestron Home driver.
+
 ---
 
 ## Prerequisites
