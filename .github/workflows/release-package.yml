@@ -142,9 +142,26 @@ jobs:
         shell: pwsh
         run: |
           $outputDir = Join-Path $env:RUNNER_TEMP 'nuget-package'
+          $manifestPath = Join-Path $env:RUNNER_TEMP 'crestron-driver-package.json'
           New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 
-          dotnet pack OverKizCrestronDriver/OverKizCrestronDriver.csproj -c Release --no-build --output $outputDir -p:PackageVersion="${{ steps.package_version.outputs.value }}" -p:PackageDriverPkgPath="${{ steps.package.outputs.pkg_path }}"
+          $manifest = @{
+            standardVersion = '1.0'
+            packageType = 'CrestronDriver'
+            driverPlatform = 'Crestron Home'
+            payloadType = 'pkg'
+            payloadFile = [System.IO.Path]::GetFileName("${{ steps.package.outputs.pkg_path }}")
+            containsManagedDllPayload = $false
+            packageId = 'OverkizCrestronDriver'
+            packageVersion = "${{ steps.package_version.outputs.value }}"
+            displayName = 'Overkiz Shade Driver'
+            vendor = 'Overkiz'
+            driverCategory = 'Shade'
+          } | ConvertTo-Json -Depth 5
+
+          Set-Content -Path $manifestPath -Value $manifest -Encoding UTF8
+
+          dotnet pack OverKizCrestronDriver/OverKizCrestronDriver.csproj -c Release --no-build --output $outputDir -p:PackageVersion="${{ steps.package_version.outputs.value }}" -p:PackageDriverPkgPath="${{ steps.package.outputs.pkg_path }}" -p:PackageDriverManifestPath="$manifestPath"
 
       - name: Locate NuGet package
         id: nuget_package

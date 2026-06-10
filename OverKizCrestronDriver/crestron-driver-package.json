@@ -1,0 +1,13 @@
+{
+  "standardVersion": "1.0",
+  "packageType": "CrestronDriver",
+  "driverPlatform": "Crestron Home",
+  "payloadType": "pkg",
+  "payloadFile": "Shade_Overkiz_IP_V2.pkg",
+  "containsManagedDllPayload": false,
+  "packageId": "OverkizCrestronDriver",
+  "packageVersion": "$packageVersion$",
+  "displayName": "Overkiz Shade Driver",
+  "vendor": "Overkiz",
+  "driverCategory": "Shade"
+}
