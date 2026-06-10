@@ -8,6 +8,21 @@
 	<LangVersion>latest</LangVersion>
 	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	<NoWarn>$(NoWarn);ILLink1005</NoWarn>
+	<IsPackable>true</IsPackable>
+	<IncludeBuildOutput>false</IncludeBuildOutput>
+	<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+	<PackageId>OverkizCrestronDriver</PackageId>
+	<Authors>Neil Colvin</Authors>
+	<Company>Neil Colvin</Company>
+	<Description>Crestron Home platform driver for Overkiz-compatible gateways that exposes managed shade and blind devices with cloud and local LAN connection support.</Description>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<PackageLicenseFile>LICENSE</PackageLicenseFile>
+	<RepositoryUrl>https://github.com/oznetmaster/OverkizCrestronDriver</RepositoryUrl>
+	<RepositoryType>git</RepositoryType>
+	<PublishRepositoryUrl>true</PublishRepositoryUrl>
+	<PackageProjectUrl>https://github.com/oznetmaster/OverkizCrestronDriver</PackageProjectUrl>
+	<PackageTags>crestron;crestron-home;driver;overkiz;somfy;tahoma;shade;blind;smarthome</PackageTags>
+	<PackageDriverPkgPath Condition="'$(PackageDriverPkgPath)' == ''"></PackageDriverPkgPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,8 +35,9 @@
   </ItemGroup>
 
   <ItemGroup>
-	<None Include="..\LICENSE" Link="LICENSE" />
-	<None Include="..\README.md" Link="README.md" />
+	<None Include="..\README.md" Link="README.md" Pack="true" PackagePath="\" Visible="false" />
+	<None Include="..\LICENSE" Link="LICENSE" Pack="true" PackagePath="\" Visible="false" />
+	<None Include="$(PackageDriverPkgPath)" Pack="true" PackagePath="\" Visible="false" Condition="'$(PackageDriverPkgPath)' != ''" />
 	<None Include="IncludeInPkg\UiDefinitions\UiDefinition.xml" />
 	<None Include="IncludeInPkg\room\uidefinitions\UiDefinition.xml" />
 	<None Include="IncludeInPkg\Translations\en-US.json" />
@@ -101,6 +117,11 @@
 	</ItemGroup>
 	<Copy SourceFiles="@(IncludeInPkgFiles)" DestinationFiles="@(IncludeInPkgFiles->'$(TargetDir)patched\IncludeInPkg\%(RecursiveDir)%(Filename)%(Extension)')" />
 	<Exec Command="&quot;$(ManifestUtilExe)&quot; --file &quot;$(TargetDir)patched\$(AssemblyName).dll&quot; --lib &quot;$(TargetDir.TrimEnd('\'))&quot; --output &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="$(PackageDriverContinueOnError)" IgnoreExitCode="$(PackageDriverIgnoreExitCode)" />
+  </Target>
+
+  <Target Name="ValidateNuGetPkgInput" BeforeTargets="GenerateNuspec" Condition="'$(IsPacking)' == 'true'">
+	<Error Condition="'$(PackageDriverPkgPath)' == ''" Text="PackageDriverPkgPath must be set when packing the NuGet package." />
+	<Error Condition="!Exists('$(PackageDriverPkgPath)')" Text="PackageDriverPkgPath '$(PackageDriverPkgPath)' does not exist." />
   </Target>
   <Import Project="OverKizCrestronDriver.Local.targets" Condition="Exists('OverKizCrestronDriver.Local.targets')" />
 

@@ -55,6 +55,8 @@ Compatibility note: the driver is intended for Overkiz-compatible gateways, but 
 
 Preferred download source: use the attached `Shade_Overkiz_IP_V2.pkg` asset from the relevant GitHub Release. The automatic GitHub `Source code (zip)` and `Source code (tar.gz)` assets are repository snapshots, not installable Crestron driver packages.
 
+NuGet package availability: this driver is also published as the `OverkizCrestronDriver` NuGet package. That NuGet package contains the same final `Shade_Overkiz_IP_V2.pkg` artifact for scripted retrieval or package-feed distribution; it is not intended as a direct DLL reference package.
+
 1. Download `Shade_Overkiz_IP_V2.pkg` from the GitHub Release assets, or build it yourself using the instructions in [Building from Source](#building-from-source).
 2. Upload the `.pkg` to your Crestron Home processor manually (for example via SFTP to `/user/ThirdPartyDrivers/Import`).
 3. In the Crestron Home **Configure** application, add a new device and select the **Tahoma Gateway** driver.
@@ -152,6 +154,8 @@ The build pipeline:
 GitHub does not receive anything from `bin/` automatically, but the repository now includes a working GitHub Actions workflow that builds and attaches the `.pkg` when a GitHub Release is published.
 
 The `release-package.yml` workflow runs on `windows-latest`, installs `Crestron.DeviceDrivers.ManifestUtil` from NuGet, builds the solution in `Release`, locates the generated `Shade_Overkiz_IP_V2.pkg`, and uploads it as the release asset automatically.
+
+The same release workflow also publishes the `OverkizCrestronDriver` NuGet package, which wraps the final `Shade_Overkiz_IP_V2.pkg` artifact.
 
 For end users, GitHub Releases are the preferred download point: download the attached `Shade_Overkiz_IP_V2.pkg` asset, not the automatic source archive assets.
 

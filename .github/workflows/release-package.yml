@@ -104,6 +104,29 @@ jobs:
         run: |
           dotnet build OverkizCrestronDriver.slnx -c Release -p:ManifestUtilExe="${{ steps.manifestutil.outputs.exe_path }}" -p:LocalNet472ReferenceAssemblies="$env:NET472_REFERENCE_ASSEMBLIES" -p:LocalNetFxRuntimeDir="$env:NETFX_RUNTIME_DIR" -p:MergeDependenciesContinueOnError=false -p:PackageDriverContinueOnError=false -p:PackageDriverIgnoreExitCode=false
 
+      - name: Determine NuGet package version
+        id: package_version
+        shell: pwsh
+        run: |
+          $refName = if ($env:GITHUB_EVENT_NAME -eq 'release' -and $env:GITHUB_EVENT_PATH) {
+            $event = Get-Content $env:GITHUB_EVENT_PATH | ConvertFrom-Json
+            $event.release.tag_name
+          }
+          else {
+            $env:GITHUB_REF_NAME
+          }
+
+          if ([string]::IsNullOrWhiteSpace($refName)) {
+            throw 'Unable to determine package version from the GitHub ref or release payload.'
+          }
+
+          $packageVersion = $refName.TrimStart('v', 'V')
+          if ([string]::IsNullOrWhiteSpace($packageVersion)) {
+            throw "Resolved package version is empty for ref '$refName'."
+          }
+
+          "value=$packageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
       - name: Locate package
         id: package
         shell: pwsh
@@ -114,6 +137,40 @@ jobs:
           }
 
           "pkg_path=$($pkg.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Pack NuGet package
+        shell: pwsh
+        run: |
+          $outputDir = Join-Path $env:RUNNER_TEMP 'nuget-package'
+          New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+
+          dotnet pack OverKizCrestronDriver/OverKizCrestronDriver.csproj -c Release --no-build --output $outputDir -p:PackageVersion="${{ steps.package_version.outputs.value }}" -p:PackageDriverPkgPath="${{ steps.package.outputs.pkg_path }}"
+
+      - name: Locate NuGet package
+        id: nuget_package
+        shell: pwsh
+        run: |
+          $nupkg = Get-ChildItem -Path (Join-Path $env:RUNNER_TEMP 'nuget-package') -Filter *.nupkg -File |
+            Where-Object { $_.Name -notlike '*.symbols.nupkg' } |
+            Sort-Object LastWriteTimeUtc -Descending |
+            Select-Object -First 1
+
+          if ($null -eq $nupkg) {
+            throw 'No NuGet package (.nupkg) was generated.'
+          }
+
+          "nupkg_path=$($nupkg.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Publish NuGet package
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) {
+            throw 'NUGET_API_KEY secret is not configured.'
+          }
+
+          dotnet nuget push "${{ steps.nuget_package.outputs.nupkg_path }}" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Upload package asset
         uses: softprops/action-gh-release@v2
