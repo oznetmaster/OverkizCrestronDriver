@@ -11,8 +11,8 @@
 	<IsPackable>true</IsPackable>
 	<IncludeBuildOutput>false</IncludeBuildOutput>
 	<SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-	<PackageType>CrestronDriver</PackageType>
-	<PackageId>OverkizCrestronDriver</PackageId>
+	<PackageType>CrestronHomeDriver</PackageType>
+	<PackageId>CrestronHomeDriver.Overkiz.Shades</PackageId>
 	<Authors>Neil Colvin</Authors>
 	<Company>Neil Colvin</Company>
 	<Description>Crestron Home platform driver for Overkiz-compatible gateways that exposes managed shade and blind devices with cloud and local LAN connection support.</Description>

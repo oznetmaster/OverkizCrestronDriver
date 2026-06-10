@@ -147,12 +147,12 @@ jobs:
 
           $manifest = @{
             standardVersion = '1.0'
-            packageType = 'CrestronDriver'
+            packageType = 'CrestronHomeDriver'
             driverPlatform = 'Crestron Home'
             payloadType = 'pkg'
             payloadFile = [System.IO.Path]::GetFileName("${{ steps.package.outputs.pkg_path }}")
             containsManagedDllPayload = $false
-            packageId = 'OverkizCrestronDriver'
+            packageId = 'CrestronHomeDriver.Overkiz.Shades'
             packageVersion = "${{ steps.package_version.outputs.value }}"
             displayName = 'Overkiz Shade Driver'
             vendor = 'Overkiz'

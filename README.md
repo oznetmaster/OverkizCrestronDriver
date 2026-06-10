@@ -55,7 +55,9 @@ Compatibility note: the driver is intended for Overkiz-compatible gateways, but 
 
 Preferred download source: use the attached `Shade_Overkiz_IP_V2.pkg` asset from the relevant GitHub Release. The automatic GitHub `Source code (zip)` and `Source code (tar.gz)` assets are repository snapshots, not installable Crestron driver packages.
 
-NuGet package availability: this driver is also published as the `OverkizCrestronDriver` NuGet package. That NuGet package contains the same final `Shade_Overkiz_IP_V2.pkg` artifact for scripted retrieval or package-feed distribution; it is not intended as a direct DLL reference package.
+NuGet package availability: this driver is also published as the `CrestronHomeDriver.Overkiz.Shades` NuGet package. This NuGet package conforms to the **Crestron Home Driver NuGet Publishing Standard v1**. It is a distribution wrapper for the final `Shade_Overkiz_IP_V2.pkg` artifact, includes the required `crestron-driver-package.json` manifest, and is not intended as a direct DLL reference package.
+
+Crestron Home Driver NuGet Publishing Standard v1 is **not** an official Crestron product or specification. It is an open source packaging standard created to facilitate community distribution and discovery of Crestron Home drivers through NuGet.
 
 1. Download `Shade_Overkiz_IP_V2.pkg` from the GitHub Release assets, or build it yourself using the instructions in [Building from Source](#building-from-source).
 2. Upload the `.pkg` to your Crestron Home processor manually (for example via SFTP to `/user/ThirdPartyDrivers/Import`).
