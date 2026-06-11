@@ -305,7 +305,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		int callNumber = System.Threading.Interlocked.Increment (ref _startPollingCallCount);
 		try
 			{
-			Log (">>> StartPolling ENTRY #" + callNumber + "; this=" + this.GetType().FullName + " controllerId=" + ControllerId);
+			Log (">>> StartPolling ENTRY #" + callNumber + "; this=" + this.GetType ().FullName + " controllerId=" + ControllerId);
 			Log (">>> StartPolling ENTRY; isOneWay=" + IsOneWay);
 			Log (">>> StartPolling PRE-STATE online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
 			if (!IsOneWay)
@@ -362,7 +362,10 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		} = 100;
 
 	/// <summary>The raw Overkiz API label for this device — used for room-group matching and identity. Never overridden by display-name config.</summary>
-	internal string ApiLabel { get; private set; }
+	internal string ApiLabel
+		{
+		get; private set;
+		}
 
 	/// <summary>Human-readable label of the device from the Overkiz API (with optional display-name override from ShadeDisplayNames config).</summary>
 	[EntityProperty (Id = "deviceLabel", FriendlyName = "Device Label")]
@@ -457,9 +460,9 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		: base (controllerId)
 		{
 		_deviceUrl = deviceUrl ?? throw new ArgumentNullException (nameof (deviceUrl));
-		ApiLabel            = deviceLabel ?? string.Empty;
+		ApiLabel = deviceLabel ?? string.Empty;
 		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
-		_deviceLabel        = _displayNameOverride ?? ApiLabel;
+		_deviceLabel = _displayNameOverride ?? ApiLabel;
 		IsOneWay = isOneWay;
 		HasMyCommand = hasMyCommand;
 		_sendCommand = sendCommand ?? throw new ArgumentNullException (nameof (sendCommand));
@@ -505,8 +508,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 					programmableMeta,
 					(id, inst, args, lookup, cb) =>
 						{
-						My ();
-						cb?.Invoke (noResult);
+							My ();
+							cb?.Invoke (noResult);
 						},
 					null));
 				}
@@ -524,13 +527,13 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 					programmableMeta,
 					(id, inst, args, lookup, cb) =>
 						{
-						if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
-							{
-							_ = pv.TryGetValue (out int pct);
-							SetOpenPercent (pct);
-							}
+							if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
+								{
+								_ = pv.TryGetValue (out int pct);
+								SetOpenPercent (pct);
+								}
 
-						cb?.Invoke (noResult);
+							cb?.Invoke (noResult);
 						},
 					["value"]));
 				}
@@ -601,4 +604,3 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		UpdateState (closure, isMoving);
 		}
 	}
-

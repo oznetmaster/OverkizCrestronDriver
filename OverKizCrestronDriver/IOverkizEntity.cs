@@ -84,4 +84,3 @@ internal interface IOverkizEntity
 	/// </summary>
 	void UpdateLabel (string newLabel);
 	}
-

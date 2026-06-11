@@ -378,10 +378,10 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		for (var i = 0; i < MAX_SLOTS; i++)
 			{
 			var configured = i < _slotConfigs.Count;
-			var apiLabel   = configured ? _slotConfigs[i].ApiLabel : string.Empty;
-			var dispName   = configured ? _slotConfigs[i].DisplayName : string.Empty;
-			RoomMember m   = null;
-			var present    = configured && labelToMember.TryGetValue (apiLabel, out m);
+			var apiLabel = configured ? _slotConfigs[i].ApiLabel : string.Empty;
+			var dispName = configured ? _slotConfigs[i].DisplayName : string.Empty;
+			RoomMember m = null;
+			var present = configured && labelToMember.TryGetValue (apiLabel, out m);
 			if (present)
 				{
 				IsTwoWay |= m.IsTwoWay;
@@ -423,8 +423,8 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 				new DriverEntityCommandMetadata (true, false),
 				(id, inst, args, lookup, cb) =>
 					{
-					My ();
-					cb?.Invoke (new DriverEntityCommandResult (false, null));
+						My ();
+						cb?.Invoke (new DriverEntityCommandResult (false, null));
 					},
 				null));
 			}
@@ -443,13 +443,13 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 				new DriverEntityCommandMetadata (true, false),
 				(id, inst, args, lookup, cb) =>
 					{
-					if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
-						{
-						_ = pv.TryGetValue (out int pct);
-						SetOpenPercentAll (pct);
-						}
+						if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
+							{
+							_ = pv.TryGetValue (out int pct);
+							SetOpenPercentAll (pct);
+							}
 
-					cb?.Invoke (new DriverEntityCommandResult (false, null));
+						cb?.Invoke (new DriverEntityCommandResult (false, null));
 					},
 				["value"]));
 			}
@@ -518,7 +518,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "open_" + i, new DelegateCommandInstance ("open_" + i, openDef, commandMeta,
 				(id, inst, args, lookup, cb) =>
 					{
-					Log ("COMMAND open_" + capturedIdx + " invoked");
+						Log ("COMMAND open_" + capturedIdx + " invoked");
 						GetSlotMember (capturedIdx)?.Open ();
 						cb?.Invoke (ok);
 					}, null));
@@ -526,7 +526,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "close_" + i, new DelegateCommandInstance ("close_" + i, closeDef, commandMeta,
 				(id, inst, args, lookup, cb) =>
 					{
-					Log ("COMMAND close_" + capturedIdx + " invoked");
+						Log ("COMMAND close_" + capturedIdx + " invoked");
 						GetSlotMember (capturedIdx)?.Close ();
 						cb?.Invoke (ok);
 					}, null));
@@ -534,7 +534,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 			AddCommand (this, "stop_" + i, new DelegateCommandInstance ("stop_" + i, stopDef, commandMeta,
 				(id, inst, args, lookup, cb) =>
 					{
-					Log ("COMMAND stop_" + capturedIdx + " invoked");
+						Log ("COMMAND stop_" + capturedIdx + " invoked");
 						GetSlotMember (capturedIdx)?.Stop ();
 						cb?.Invoke (ok);
 					}, null));
@@ -545,7 +545,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 				AddCommand (this, "my_" + i, new DelegateCommandInstance ("my_" + i, myDef, programmableMeta,
 					(id, inst, args, lookup, cb) =>
 						{
-						Log ("COMMAND my_" + capturedIdx + " invoked");
+							Log ("COMMAND my_" + capturedIdx + " invoked");
 							GetSlotMember (capturedIdx)?.My ();
 							cb?.Invoke (ok);
 						}, null));
@@ -559,7 +559,7 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 				AddCommand (this, "setOpenPercent_" + i, new DelegateCommandInstance ("setOpenPercent_" + i, pctCmdDef, programmableMeta,
 					(id, inst, args, lookup, cb) =>
 						{
-						Log ("COMMAND setOpenPercent_" + capturedIdx + " invoked");
+							Log ("COMMAND setOpenPercent_" + capturedIdx + " invoked");
 							if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
 								{
 								_ = pv.TryGetValue (out int pct);
@@ -655,10 +655,10 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		for (var i = 0; i < MAX_SLOTS; i++)
 			{
 			var configured = i < _slotConfigs.Count;
-			var apiLabel   = configured ? _slotConfigs[i].ApiLabel : string.Empty;
-			var dispName   = configured ? _slotConfigs[i].DisplayName : string.Empty;
-			RoomMember m   = null;
-			var present    = configured && labelToMember.TryGetValue (apiLabel, out m);
+			var apiLabel = configured ? _slotConfigs[i].ApiLabel : string.Empty;
+			var dispName = configured ? _slotConfigs[i].DisplayName : string.Empty;
+			RoomMember m = null;
+			var present = configured && labelToMember.TryGetValue (apiLabel, out m);
 			if (present)
 				{
 				IsTwoWay |= m.IsTwoWay;

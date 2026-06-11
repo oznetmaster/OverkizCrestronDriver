@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 
 using Crestron.DeviceDrivers.EntityModel;
 using Crestron.DeviceDrivers.EntityModel.Data;
+using Crestron.DeviceDrivers.EntityModel.Logging;
 using Crestron.DeviceDrivers.SDK;
 using Crestron.DeviceDrivers.SDK.EntityModel;
 using Crestron.DeviceDrivers.SDK.EntityModel.Attributes;
@@ -18,8 +19,6 @@ using Crestron.DeviceDrivers.SDK.EntityModel.Attributes;
 using OverKizApi;
 using OverKizApi.Enums;
 using OverKizApi.Models;
-
-using Crestron.DeviceDrivers.EntityModel.Logging;
 
 using OverkizCommand = OverKizApi.Models.Command;
 
@@ -540,34 +539,34 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			{
 			foreach (IOverkizEntity e in _entities.Values)
 				{
-				#if DEBUG
+#if DEBUG
 				Log ("StartAllChildPolling - StartPolling for " + e.ControllerId + " type=" + e.GetType ().Name);
-				#endif
+#endif
 				if (e is OverkizShadeEntity shade)
 					{
-					#if DEBUG
+#if DEBUG
 					Log ("StartAllChildPolling - shade pre-state id=" + shade.ControllerId + " online=" + shade.OnlineIndicatorIsOnline + " ready=" + shade.ReadyIndicatorIsReady + " label='" + shade.DeviceLabel + "'");
-					#endif
+#endif
 					}
 				e.StartPolling (_workQueue);
 				if (e is OverkizShadeEntity startedShade)
 					{
-					#if DEBUG
+#if DEBUG
 					Log ("StartAllChildPolling - shade post-state id=" + startedShade.ControllerId + " online=" + startedShade.OnlineIndicatorIsOnline + " ready=" + startedShade.ReadyIndicatorIsReady + " label='" + startedShade.DeviceLabel + "'");
-					#endif
+#endif
 					}
 				}
 
 			foreach (OverkizRoomEntity r in _roomEntities.Values)
 				{
-				#if DEBUG
+#if DEBUG
 				Log ("StartAllChildPolling - StartPolling for room " + r.ControllerId);
 				Log ("StartAllChildPolling - room pre-state id=" + r.ControllerId + " online=" + r.OnlineIndicatorIsOnline + " ready=" + r.ReadyIndicatorIsReady + " label='" + r.DeviceLabel + "'");
-				#endif
+#endif
 				r.StartPolling (_workQueue);
-				#if DEBUG
+#if DEBUG
 				Log ("StartAllChildPolling - room post-state id=" + r.ControllerId + " online=" + r.OnlineIndicatorIsOnline + " ready=" + r.ReadyIndicatorIsReady + " label='" + r.DeviceLabel + "'");
-				#endif
+#endif
 				}
 			}
 		}
@@ -2057,4 +2056,3 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		return chars.ToString ();
 		}
 	}
-
