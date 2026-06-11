@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -46,8 +45,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		get;
 		}
 
-	private string _deviceLabel;
-
+	[Conditional ("DEBUG")]
 	private void Log (string msg) =>
 		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
 
@@ -83,35 +81,6 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		{
 		DebugLog ("GetCommand requested: commandName='" + commandName + "'");
 		return GetCommand (commandName);
-		}
-
-	private void LogDeclaredEntitySurface ()
-		{
-		try
-			{
-			var propertyEntries = new List<string> ();
-			foreach (PropertyInfo prop in GetType ().GetProperties (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-				{
-				EntityPropertyAttribute attr = prop.GetCustomAttribute<EntityPropertyAttribute> ();
-				if (attr != null)
-					propertyEntries.Add ((attr.Id ?? prop.Name) + "<=" + prop.Name);
-				}
-
-			var commandEntries = new List<string> ();
-			foreach (MethodInfo method in GetType ().GetMethods (BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-				{
-				EntityCommandAttribute attr = method.GetCustomAttribute<EntityCommandAttribute> ();
-				if (attr != null)
-					commandEntries.Add ((attr.Id ?? method.Name) + "<=" + method.Name);
-				}
-
-			DebugLog ("EntitySurface properties(" + propertyEntries.Count + "): " + string.Join (", ", propertyEntries));
-			DebugLog ("EntitySurface commands(" + commandEntries.Count + "): " + string.Join (", ", commandEntries));
-			}
-		catch (Exception ex)
-			{
-			DebugLog ("EntitySurface logging failed: " + ex.Message);
-			}
 		}
 
 	// ── IOverkizEntity ────────────────────────────────────────────────────
@@ -243,20 +212,20 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			return;
 
 		ApiLabel = label;
-		_deviceLabel = _displayNameOverride ?? ApiLabel;
+		DeviceLabel = _displayNameOverride ?? ApiLabel;
 
-		TraceNotify ("deviceLabel", new DriverEntityValue (_deviceLabel));
-		Log ("UpdateLabel: apiLabel='" + ApiLabel + "' deviceLabel='" + _deviceLabel + "'");
+		TraceNotify ("deviceLabel", new DriverEntityValue (DeviceLabel));
+		Log ("UpdateLabel: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
 		}
 
 	/// <summary>Updates the display-name override and refreshes <see cref="DeviceLabel"/>.</summary>
 	public void UpdateDisplayName (string displayName)
 		{
 		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
-		_deviceLabel = _displayNameOverride ?? ApiLabel;
+		DeviceLabel = _displayNameOverride ?? ApiLabel;
 
-		TraceNotify ("deviceLabel", new DriverEntityValue (_deviceLabel));
-		Log ("UpdateDisplayName: apiLabel='" + ApiLabel + "' deviceLabel='" + _deviceLabel + "'");
+		TraceNotify ("deviceLabel", new DriverEntityValue (DeviceLabel));
+		Log ("UpdateDisplayName: apiLabel='" + ApiLabel + "' deviceLabel='" + DeviceLabel + "'");
 		}
 
 	/// <inheritdoc/>
@@ -370,7 +339,11 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	/// <summary>Human-readable label of the device from the Overkiz API (with optional display-name override from ShadeDisplayNames config).</summary>
 	[EntityProperty (Id = "deviceLabel", FriendlyName = "Device Label")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string DeviceLabel => _deviceLabel;
+	public string DeviceLabel
+		{
+		get;
+		private set;
+		}
 
 	/// <summary>
 	/// True when the shade supports position feedback (two-way).
@@ -378,7 +351,11 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	/// </summary>
 	[EntityProperty (Id = "isTwoWay", FriendlyName = "Two-Way")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool IsTwoWay => !IsOneWay;
+	public bool IsTwoWay
+		{
+		get;
+		private set;
+		}
 
 	/// <summary>
 	/// True when the Overkiz device exposes a "my" command (favourite position).
@@ -386,7 +363,11 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	/// </summary>
 	[EntityProperty (Id = "hasMy", FriendlyName = "Has My")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool HasMy => HasMyCommand;
+	public bool HasMy
+		{
+		get;
+		private set;
+		}
 
 	[EntityProperty (Id = "isMoving", FriendlyName = "Is Moving")]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
@@ -428,16 +409,24 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		_sendCommand ("stop");
 		}
 
+	[EntityCommand (Id = "my", FriendlyName = "My")]
+	[EntityCommandMetadata (Programmable = true)]
 	public void My ()
 		{
 		DebugLog ("COMMAND my invoked");
-		_sendCommand ("my");
+		if (HasMyCommand)
+			_sendCommand ("my");
 		}
 
+	[EntityCommand (Id = "setOpenPercent", FriendlyName = "Set Open %")]
+	[EntityCommandMetadata (Programmable = true)]
 	public void SetOpenPercent (
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
 		{
 		DebugLog ("COMMAND setOpenPercent invoked value=" + value);
+		if (IsOneWay)
+			return;
+
 		// Overkiz closure is the inverse of open: 0 = open, 100 = closed.
 		var closure = 100 - Math.Max (0, Math.Min (100, value));
 		_sendCommandWithParams ("setClosure", [closure]);
@@ -462,15 +451,14 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		_deviceUrl = deviceUrl ?? throw new ArgumentNullException (nameof (deviceUrl));
 		ApiLabel = deviceLabel ?? string.Empty;
 		_displayNameOverride = !string.IsNullOrEmpty (displayName) ? displayName : null;
-		_deviceLabel = _displayNameOverride ?? ApiLabel;
+		DeviceLabel = _displayNameOverride ?? ApiLabel;
 		IsOneWay = isOneWay;
+		IsTwoWay = !isOneWay;
 		HasMyCommand = hasMyCommand;
+		HasMy = hasMyCommand;
 		_sendCommand = sendCommand ?? throw new ArgumentNullException (nameof (sendCommand));
 		_sendCommandWithParams = sendCommandWithParams ?? throw new ArgumentNullException (nameof (sendCommandWithParams));
 		_logger = logger;
-		var programmableMeta = new DriverEntityCommandMetadata (true, false);
-		var noName = new DriverEntityLocalizedString (null, null);
-		var noResult = new DriverEntityCommandResult (false, null);
 
 		Log ("Constructed: controllerId=" + controllerId + " isOneWay=" + isOneWay);
 
@@ -494,50 +482,10 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			LogError (">>> AddProperty UiDefinition FAILED: " + ex.Message);
 			}
 
-		// Wire up the extension command executors so that the Crestron Home extension
-		// UI can invoke commands and set property values on this entity.
+		// Wire up the framework extension command executors.
 		try
 			{
 			Log (">>> About to create ExtensionDoCommandExecutor");
-			if (HasMyCommand)
-				{
-				var myDef = new DriverEntityCommandDefinition (null, null, null, new DriverEntityLocalizedString ("My", null));
-				AddCommand (this, "my", new DelegateCommandInstance (
-					"my",
-					myDef,
-					programmableMeta,
-					(id, inst, args, lookup, cb) =>
-						{
-							My ();
-							cb?.Invoke (noResult);
-						},
-					null));
-				}
-
-			if (!IsOneWay)
-				{
-				var intRange = new DriverEntityValueRange (0.0, 100.0, null);
-				var intType = new DriverEntityTypeDefinition (DriverEntityValueType.Integer, DriverEntityValueType.Uninitialized, null, intRange, null, null, null);
-				var pctParamDef = new DriverEntityParameterDefinition (noName, null, intType, null, null, null, null, false, false, null);
-				var pctParams = new Dictionary<string, DriverEntityParameterDefinition> { ["value"] = pctParamDef };
-				var pctCmdDef = new DriverEntityCommandDefinition (pctParams, intType, null, new DriverEntityLocalizedString ("Set Open %", null));
-				AddCommand (this, "setOpenPercent", new DelegateCommandInstance (
-					"setOpenPercent",
-					pctCmdDef,
-					programmableMeta,
-					(id, inst, args, lookup, cb) =>
-						{
-							if (args != null && args.TryGetValue ("value", out DriverEntityValue pv))
-								{
-								_ = pv.TryGetValue (out int pct);
-								SetOpenPercent (pct);
-								}
-
-							cb?.Invoke (noResult);
-						},
-					["value"]));
-				}
-
 			var doCommand = new ExtensionDoCommandExecutor (TraceGetCommand, resources.Logger);
 			AddCommand (this, ExtensionDoCommandExecutor.CommandName, doCommand);
 			Log (">>> ExtensionDoCommandExecutor succeeded");
@@ -558,8 +506,6 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			{
 			LogError (">>> ExtensionSetPropertyValueExecutor FAILED: " + ex.Message);
 			}
-
-		LogDeclaredEntitySurface ();
 
 		// Both indicators start false; they will be set true BEFORE UpdateSubControllers()
 		// via SetInitialOnlineState() so the framework's initial GetState() sees them as ready.

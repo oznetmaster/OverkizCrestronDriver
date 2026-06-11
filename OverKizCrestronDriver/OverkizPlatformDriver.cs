@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -85,6 +86,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	private readonly DriverControllerLogger _logger;
 
+	[Conditional ("DEBUG")]
 	private void Log (string msg) =>
 		_logger?.Log (ControllerId, LogEntryLevel.Info, msg);
 
