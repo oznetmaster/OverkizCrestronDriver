@@ -108,6 +108,19 @@ jobs:
         id: package_version
         shell: pwsh
         run: |
+          $manifestPath = Join-Path $env:GITHUB_WORKSPACE 'OverKizCrestronDriver\Shade_Overkiz_IP_V2.json'
+          if (-not (Test-Path $manifestPath)) {
+            throw "Manifest file was not found at $manifestPath"
+          }
+
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          $driverVersion = $manifest.GeneralInformation.DriverVersion
+          if ([string]::IsNullOrWhiteSpace($driverVersion)) {
+            throw 'DriverVersion was not found in the driver manifest.'
+          }
+
+          $expectedTag = "v$driverVersion"
+
           $refName = if ($env:GITHUB_EVENT_NAME -eq 'release' -and $env:GITHUB_EVENT_PATH) {
             $event = Get-Content $env:GITHUB_EVENT_PATH | ConvertFrom-Json
             $event.release.tag_name
@@ -116,16 +129,12 @@ jobs:
             $env:GITHUB_REF_NAME
           }
 
-          if ([string]::IsNullOrWhiteSpace($refName)) {
-            throw 'Unable to determine package version from the GitHub ref or release payload.'
+          if (-not [string]::IsNullOrWhiteSpace($refName) -and $refName.StartsWith('v', [System.StringComparison]::OrdinalIgnoreCase) -and $refName -ne $expectedTag) {
+            throw "Git tag '$refName' does not match manifest DriverVersion '$driverVersion'. Use tag '$expectedTag'."
           }
 
-          $packageVersion = $refName.TrimStart('v', 'V')
-          if ([string]::IsNullOrWhiteSpace($packageVersion)) {
-            throw "Resolved package version is empty for ref '$refName'."
-          }
-
-          "value=$packageVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "value=$driverVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=$expectedTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Locate package
         id: package
