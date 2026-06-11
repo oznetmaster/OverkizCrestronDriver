@@ -62,10 +62,11 @@
 	<MergeDependenciesContinueOnError Condition="'$(MergeDependenciesContinueOnError)' == ''">true</MergeDependenciesContinueOnError>
 	<PackageDriverContinueOnError Condition="'$(PackageDriverContinueOnError)' == ''">true</PackageDriverContinueOnError>
 	<PackageDriverIgnoreExitCode Condition="'$(PackageDriverIgnoreExitCode)' == ''">true</PackageDriverIgnoreExitCode>
+	<SkipDriverVersionBump Condition="'$(SkipDriverVersionBump)' == ''">false</SkipDriverVersionBump>
   </PropertyGroup>
 
   <!-- BumpDriverVersion: increments the 4th component of DriverVersion on every Debug build -->
-  <Target Name="BumpDriverVersion" BeforeTargets="BeforeBuild">
+	<Target Name="BumpDriverVersion" BeforeTargets="BeforeBuild" Condition="'$(SkipDriverVersionBump)' != 'true'">
 	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\BumpDriverVersion.ps1&quot; -ManifestPath &quot;$(MSBuildProjectDirectory)\Shade_Overkiz_IP_V2.json&quot; -Configuration &quot;$(Configuration)&quot;" />
   </Target>
 

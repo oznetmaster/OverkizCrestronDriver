@@ -35,13 +35,13 @@ if (-not $match.Success) {
 
 $major = [int]$match.Groups['major'].Value
 $minor = [int]$match.Groups['minor'].Value
- $release = [int]$match.Groups['release'].Value
+$release = [int]$match.Groups['release'].Value
 
 if (Test-IsBelowMinimumReleaseVersion -Major $major -Minor $minor -Release $release) {
-	$newVersion = '{0}.{1}.{2}.0000' -f $minimumReleaseMajor, $minimumReleaseMinor, $minimumReleaseNumber.ToString('000')
+	$newVersion = '{0}.{1}.{2}.0' -f $minimumReleaseMajor, $minimumReleaseMinor, $minimumReleaseNumber
 }
 else {
-	$newVersion = '{0}.{1}.{2}.0000' -f $major, $minor, ($release + 1).ToString('000')
+	$newVersion = '{0}.{1}.{2}.0' -f $major, $minor, ($release + 1)
 }
 
 $content = [regex]::Replace($content, '(?<="DriverVersion":\s*")[^"]+(?=")', $newVersion, 1)

@@ -43,14 +43,14 @@ $build = [int]$match.Groups['build'].Value
 
 switch ($Configuration) {
 	'Debug' {
-		$newVersion = '{0}.{1}.{2}.{3}' -f $major, $minor, $release.ToString('000'), ($build + 1).ToString('0000')
+		$newVersion = '{0}.{1}.{2}.{3}' -f $major, $minor, $release, ($build + 1)
 	}
 	'Release' {
 		if (Test-IsBelowMinimumReleaseVersion -Major $major -Minor $minor -Release $release) {
-			$newVersion = '{0}.{1}.{2}.0000' -f $minimumReleaseMajor, $minimumReleaseMinor, $minimumReleaseNumber.ToString('000')
+			$newVersion = '{0}.{1}.{2}.0' -f $minimumReleaseMajor, $minimumReleaseMinor, $minimumReleaseNumber
 		}
 		else {
-			$newVersion = '{0}.{1}.{2}.0000' -f $major, $minor, ($release + 1).ToString('000')
+			$newVersion = '{0}.{1}.{2}.0' -f $major, $minor, ($release + 1)
 		}
 	}
 	default {
