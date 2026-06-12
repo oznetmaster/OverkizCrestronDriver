@@ -22,9 +22,6 @@ from `ReflectedAttributeDriverEntity` and declares all properties, commands, and
 SDK attributes, with no dependency on any RAD base type (`ABaseDriver`, `ABasicVideoDisplay`,
 etc.) or command/state controller infrastructure (`StateController`, `PollingDeviceStateBase`, etc.).
 
-This makes it one of the very few — and quite possibly the **only publicly available** — Crestron
-Home extension driver built entirely on the V2 entity model without a RAD base class.
-
 ---
 
 ## Features
