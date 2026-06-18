@@ -1007,6 +1007,12 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private void ApplyDisplayConfig ()
 		{
 		Log ("ApplyDisplayConfig: applying updated display names");
+		List<ConfigurableDriverEntity> controllersToAdd = [];
+		List<string> controllersToRemove = [];
+		List<OverkizRoomEntity> addedRooms = [];
+		List<OverkizRoomEntity> removedRooms = [];
+		Dictionary<string, PlatformManagedDevice> managedDevices;
+
 		lock (_entitiesLock)
 			{
 			// Update each shade's display label.
@@ -1019,25 +1025,95 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					}
 				}
 
-			// Rebuild room member lists in place and update room titles.
-			var managedDevices = ManagedDevices != null
+			RebuildConfiguredRoomTrackingLocked ();
+
+			// Rebuild room member lists in place, create newly configured rooms, remove stale rooms,
+			// and update room titles.
+			managedDevices = ManagedDevices != null
 				? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
 				: new Dictionary<string, PlatformManagedDevice> ();
 
-			foreach (string placeOid in _roomEntities.Keys)
+			HashSet<string> activeRoomIds = [.. _roomToShades
+				.Where (kv => kv.Value.Count >= 1)
+				.Select (kv => kv.Key)];
+
+			foreach (string placeOid in activeRoomIds)
 				{
-				_ = RebuildRoomMembersLocked (placeOid, ref managedDevices, out OverkizRoomEntity room);
+				bool updated = RebuildRoomMembersLocked (placeOid, ref managedDevices, out OverkizRoomEntity room);
+				if (!updated && room != null)
+					{
+					controllersToAdd.Add (new ConfigurableDriverEntity (room.ControllerId, room, null));
+					addedRooms.Add (room);
+					}
 
 				if (room != null &&
 					_roomGroups.TryGetValue (placeOid, out RoomGroupEntry grp) &&
 					!string.IsNullOrEmpty (grp.RoomDisplayName))
 					{
+					_placeLabels[placeOid] = grp.RoomDisplayName;
 					room.UpdateLabel (grp.RoomDisplayName);
 					}
 				}
 
-			ManagedDevices = managedDevices;
-			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+			foreach (string placeOid in _roomEntities.Keys.ToList ())
+				{
+				if (activeRoomIds.Contains (placeOid))
+					continue;
+
+				(OverkizRoomEntity removedRoom, Dictionary<string, PlatformManagedDevice> afterDestroy) = DestroyRoomEntityLocked (placeOid, managedDevices);
+				if (removedRoom == null)
+					continue;
+
+				managedDevices = afterDestroy;
+				controllersToRemove.Add (removedRoom.ControllerId);
+				removedRooms.Add (removedRoom);
+				_ = _placeLabels.TryRemove (placeOid, out _);
+				}
+			}
+
+		foreach (OverkizRoomEntity removedRoom in removedRooms)
+			removedRoom.StopPolling ();
+
+		if (controllersToAdd.Count > 0 || controllersToRemove.Count > 0)
+			UpdateSubControllers (
+				controllersToAdd.Count == 0 ? null : controllersToAdd,
+				controllersToRemove.Count == 0 ? null : controllersToRemove);
+
+		ManagedDevices = managedDevices;
+		NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+
+		foreach (OverkizRoomEntity addedRoom in addedRooms)
+			addedRoom.StartPolling (_workQueue);
+		}
+
+	private void RebuildConfiguredRoomTrackingLocked ()
+		{
+		_shadeToRoom.Clear ();
+		_roomToShades.Clear ();
+
+		var labelToUrl = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
+		foreach (KeyValuePair<string, IOverkizEntity> kv in _entities)
+			{
+			if (kv.Value is OverkizShadeEntity shade)
+				labelToUrl[shade.ApiLabel] = kv.Key;
+			}
+
+		foreach (KeyValuePair<string, RoomGroupEntry> group in _roomGroups)
+			{
+			string roomKey = group.Key;
+			RoomGroupEntry entry = group.Value;
+			List<string> matchedUrls = entry.Members
+				.Where (m => labelToUrl.ContainsKey (m.ApiLabel))
+				.Select (m => labelToUrl[m.ApiLabel])
+				.Distinct (StringComparer.OrdinalIgnoreCase)
+				.ToList ();
+
+			if (matchedUrls.Count == 0)
+				continue;
+
+			_placeLabels[roomKey] = entry.RoomDisplayName;
+			foreach (string shadeUrl in matchedUrls)
+				TrackShadeInRoom (shadeUrl, roomKey);
 			}
 		}
 
