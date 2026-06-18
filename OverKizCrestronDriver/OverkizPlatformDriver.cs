@@ -1813,7 +1813,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			UpdateSubControllers (controllers, null);
 			Log ("Event: DeviceCreated - UpdateSubControllers complete for " + entity.ControllerId);
 			if (entity is OverkizShadeEntity registeredShade)
+				{
 				Log ("Event: DeviceCreated - post-register shade state controllerId=" + registeredShade.ControllerId + " online=" + registeredShade.OnlineIndicatorIsOnline + " ready=" + registeredShade.ReadyIndicatorIsReady);
+				registeredShade.PushInitialState ();
+				Log ("Event: DeviceCreated - initial shade state published controllerId=" + registeredShade.ControllerId + " online=" + registeredShade.OnlineIndicatorIsOnline + " ready=" + registeredShade.ReadyIndicatorIsReady);
+				}
 
 			Log ("Event: DeviceCreated - StartPolling for " + entity.ControllerId + " type=" + entity.GetType ().Name);
 			entity.StartPolling (_workQueue);
