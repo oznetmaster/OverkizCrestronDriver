@@ -8,6 +8,8 @@ Crestron and Crestron Home are trademarks or registered trademarks of Crestron E
 
 [![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-blue.svg)](LICENSE)
 
+See [CHANGELOG.md](CHANGELOG.md) for release history, or the [GitHub Releases](https://github.com/oznetmaster/OverkizCrestronDriver/releases) page for downloadable assets.
+
 ---
 
 ## Driver Architecture
