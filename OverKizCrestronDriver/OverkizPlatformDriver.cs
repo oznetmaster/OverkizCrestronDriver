@@ -63,10 +63,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private string _roomGroupsRaw = string.Empty;
 	private string _shadeDisplayNamesRaw = string.Empty;
 
-	/// <summary>Parsed room groups: room key → entry with display name and per-member (apiLabel, displayName) pairs.</summary>
+	/// <summary>Parsed room groups: room key â†’ entry with display name and per-member (apiLabel, displayName) pairs.</summary>
 	private Dictionary<string, RoomGroupEntry> _roomGroups = [];
 
-	/// <summary>Optional per-shade display name overrides: normalised API label → display name.</summary>
+	/// <summary>Optional per-shade display name overrides: normalised API label â†’ display name.</summary>
 	private Dictionary<string, string> _shadeDisplayNames = new (StringComparer.OrdinalIgnoreCase);
 
 	private bool IsLocalMode =>
@@ -159,7 +159,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private readonly Dictionary<string, IOverkizEntity> _entities
 		= new (StringComparer.OrdinalIgnoreCase);
 
-	/// <summary>placeOid → room aggregate entity.  Guarded by _entitiesLock.</summary>
+	/// <summary>placeOid â†’ room aggregate entity.  Guarded by _entitiesLock.</summary>
 	private readonly Dictionary<string, OverkizRoomEntity> _roomEntities
 		= new (StringComparer.OrdinalIgnoreCase);
 
@@ -167,15 +167,15 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	// ── Room / place tracking (lock-free, copy-on-write lists) ───────────
 
-	/// <summary>placeOid → user-visible room label.</summary>
+	/// <summary>placeOid â†’ user-visible room label.</summary>
 	private readonly ConcurrentDictionary<string, string> _placeLabels
 		= new (StringComparer.OrdinalIgnoreCase);
 
-	/// <summary>deviceUrl → placeOid of its assigned room.</summary>
+	/// <summary>deviceUrl â†’ placeOid of its assigned room.</summary>
 	private readonly ConcurrentDictionary<string, string> _shadeToRoom
 		= new (StringComparer.OrdinalIgnoreCase);
 
-	/// <summary>placeOid → snapshot list of deviceUrls in that room.
+	/// <summary>placeOid â†’ snapshot list of deviceUrls in that room.
 	/// The list is <em>replaced</em>, never mutated in place, so any reader
 	/// holding a reference sees a stable snapshot.</summary>
 	private readonly ConcurrentDictionary<string, List<string>> _roomToShades
@@ -204,8 +204,10 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	// ── HttpClient (one instance, reused across reconnects) ───────────────
 
-	private readonly HttpClient _httpClient;
+	private HttpClient _clientHttp;
+	internal Func<HttpClient> HttpClientFactory { get; set; }
 	private bool _disposed;
+	internal Func<OverkizClient> ClientFactory { get; set; }
 
 	// ── Configuration controller (exposed to entry point) ─────────────────
 
@@ -225,14 +227,6 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		_args = args;
 		_resources = resources;
 
-		// Single HttpClient with KeepAlive disabled to prevent memory leak (SDK guideline).
-		// CreateLocalHttpClientHandler() bypasses TLS validation for the self-signed cert on local gateways;
-		// that handler is also fine for cloud connections (which use a trusted cert).
-		HttpClientHandler handler = OverkizConst.CreateLocalHttpClientHandler ();
-		handler.UseCookies = true;
-		_httpClient = new HttpClient (handler);
-		// Prevent the KeepAlive timer/DelayPromise memory leak (Crestron SDK guideline).
-		_httpClient.DefaultRequestHeaders.ConnectionClose = true;
 
 		var cfgArgs = DataDrivenConfigurationControllerArgs.FromResources (args, resources, ControllerId);
 		ConfigurationController = new DelegateDataDrivenConfigurationController (
@@ -246,30 +240,32 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	public override void Dispose ()
 		{
-		if (_disposed)
-			return;
-		_disposed = true;
-
 		lock (_connectLock)
 			{
-			_connectCts?.Cancel ();
-			_connectCts?.Dispose ();
-			_connectCts = null;
-			}
+			if (_disposed)
+				return;
+			_disposed = true;
 
-		_workQueue.Stop ();
-		StopEventLoop ();
-		lock (_entitiesLock)
-			{
-			foreach (IOverkizEntity e in _entities.Values)
-				e.StopPolling ();
-			foreach (OverkizRoomEntity r in _roomEntities.Values)
-				r.StopPolling ();
-			}
+			lock (_connectLock)
+				{
+				_connectCts?.Cancel ();
+				_connectCts?.Dispose ();
+				_connectCts = null;
+				}
 
-		DisposeClient ();
-		_httpClient?.Dispose ();
-		base.Dispose ();
+			_workQueue.Stop ();
+			StopEventLoop ();
+			lock (_entitiesLock)
+				{
+				foreach (IOverkizEntity e in _entities.Values)
+					e.StopPolling ();
+				foreach (OverkizRoomEntity r in _roomEntities.Values)
+					r.StopPolling ();
+				}
+
+			DisposeClient ();
+			base.Dispose ();
+			}
 		}
 
 	// ── Private: configuration callback ──────────────────────────────────
@@ -420,8 +416,32 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				return null;
 
 			case DataDrivenConfigurationController.ApplyConfigurationAction.ClearValues:
-				Disconnect ();
-				SetReady (false);
+				lock (_connectLock)
+					{
+					Disconnect ();
+					_cloudUsername = string.Empty;
+					_cloudPassword = string.Empty;
+					_gatewayIp = string.Empty;
+					_localToken = string.Empty;
+					_roomGroupsRaw = string.Empty;
+					_roomGroups.Clear ();
+					lock (_entitiesLock)
+						{
+						var ids = _entities.Values.Select (e => e.ControllerId).Concat (_roomEntities.Values.Select (e => e.ControllerId)).ToList ();
+						if (ids.Count != 0)
+							UpdateSubControllers (null, ids);
+						foreach (IOverkizEntity entity in _entities.Values)
+							(entity as IDisposable)?.Dispose ();
+						_entities.Clear ();
+						_roomEntities.Clear ();
+						_shadeToRoom.Clear ();
+						_roomToShades.Clear ();
+						_placeLabels.Clear ();
+						ManagedDevices = new Dictionary<string, PlatformManagedDevice> ();
+						NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+						}
+					SetReady (false);
+					}
 				break;
 			}
 
@@ -434,12 +454,16 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		{
 		CancellationTokenSource cts;
 		TaskCompletionSource<bool> tcs;
+		CancellationToken token;
 		lock (_connectLock)
 			{
+			if (_disposed)
+				return;
 			_connectCts?.Cancel ();
 			_connectCts?.Dispose ();
 			_connectCts = new CancellationTokenSource ();
 			cts = _connectCts;
+			token = cts.Token;
 			_connectInFlight = true;
 			_registrationTcs = new TaskCompletionSource<bool> ();
 			tcs = _registrationTcs;
@@ -451,25 +475,33 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					{
 					Log ("Connect task started; isLocalMode=" + IsLocalMode);
 
-					cts.Token.ThrowIfCancellationRequested ();
+					token.ThrowIfCancellationRequested ();
 
 					// Stop event loop and dispose old client, but preserve children
-					StopEventLoop ();
-					DisposeClient ();
+					lock (_connectLock)
+						{
+						token.ThrowIfCancellationRequested ();
+						StopEventLoop ();
+						DisposeClient ();
+						}
 
-					cts.Token.ThrowIfCancellationRequested ();
-					await ConnectClientAsync ().ConfigureAwait (false);
+					token.ThrowIfCancellationRequested ();
+					await ConnectClientAsync (token).ConfigureAwait (false);
 
-					cts.Token.ThrowIfCancellationRequested ();
-					SetOnline (true);
-					SetReady (true);
+					token.ThrowIfCancellationRequested ();
+					lock (_connectLock)
+						{
+						token.ThrowIfCancellationRequested ();
+						SetOnline (true);
+						SetReady (true);
+						}
 
-					cts.Token.ThrowIfCancellationRequested ();
-					await DiscoverDevicesAsync (cts.Token).ConfigureAwait (false);
+					token.ThrowIfCancellationRequested ();
+					await DiscoverDevicesAsync (token).ConfigureAwait (false);
 
 					_ = tcs.TrySetResult (true);
 
-					cts.Token.ThrowIfCancellationRequested ();
+					token.ThrowIfCancellationRequested ();
 
 					// Known issue/workaround context:
 					// After reboot, the first commissioned child under this gateway can fail to reach full
@@ -479,13 +511,12 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					// listener startup have all been verified before that first failed commission. If this startup
 					// sequence is revisited, preserve the current ordering evidence and keep the proven operational
 					// workaround documented in GPT55_DIAGNOSIS.md with any changes.
-					StartAllChildPolling ();
-					StartEventLoop ();
-
 					lock (_connectLock)
 						{
-						if (ReferenceEquals (cts, _connectCts))
-							_hasConnectedWithAppliedConfig = true;
+						token.ThrowIfCancellationRequested ();
+						StartAllChildPolling ();
+						StartEventLoop ();
+						_hasConnectedWithAppliedConfig = true;
 						}
 					}
 				catch (OperationCanceledException)
@@ -497,15 +528,16 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					{
 					_ = tcs.TrySetException (ex);
 
-					SetOnline (false);
-					SetReady (false);
-					StopEventLoop ();
-					StopAllChildPolling ();
-
 					lock (_connectLock)
 						{
-						if (ReferenceEquals (cts, _connectCts))
+						if (ReferenceEquals (cts, _connectCts) && !_disposed)
+							{
+							SetOnline (false);
+							SetReady (false);
+							StopEventLoop ();
+							StopAllChildPolling ();
 							_hasConnectedWithAppliedConfig = false;
+							}
 						}
 
 					LogError ("Connect failed: " + ex);
@@ -614,47 +646,63 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	// ── Private: API client lifecycle ─────────────────────────────────────
 
-	private async Task ConnectClientAsync ()
+	private static HttpClient CreateConnectionHttpClient ()
 		{
-		OverkizClient newClient;
+		var handler = OverkizConst.CreateLocalHttpClientHandler ();
+		handler.UseCookies = true;
+		var client = new HttpClient (handler);
+		// One transport per connection, reused for its requests. Disable KeepAlive per SDK guidance.
+		client.DefaultRequestHeaders.ConnectionClose = true;
+		return client;
+		}
 
-		if (IsLocalMode)
+	private async Task ConnectClientAsync (CancellationToken token)
+		{
+		OverkizClient newClient = null;
+		HttpClient newHttp = null;
+		bool published = false;
+		try
 			{
-			newClient = new OverkizClient (
-				username: string.Empty,
-				password: string.Empty,
-				server: OverkizConst.LocalServer (_gatewayIp),
-				token: _localToken,
-				httpClient: _httpClient);
-
-			Log ("Using Local mode: " + _gatewayIp);
+			if (ClientFactory != null)
+				newClient = ClientFactory ();
+			else
+				{
+				newHttp = HttpClientFactory?.Invoke () ?? CreateConnectionHttpClient ();
+				if (IsLocalMode)
+					newClient = new OverkizClient (string.Empty, string.Empty, OverkizConst.LocalServer (_gatewayIp), _localToken, newHttp);
+				else
+					{
+					if (string.IsNullOrEmpty (_cloudUsername) || string.IsNullOrEmpty (_cloudPassword))
+						throw new InvalidOperationException ("Cloud mode requires CloudUsername and CloudPassword.");
+					if (!Enum.TryParse<Server> (_cloudServer, out Server serverEnum))
+						serverEnum = Server.SomfyEurope;
+					newClient = new OverkizClient (_cloudUsername, _cloudPassword, OverkizConst.SupportedServers[serverEnum], httpClient: newHttp);
+					}
+				}
+			if (!await newClient.Login ().ConfigureAwait (false))
+				throw new InvalidOperationException ("Overkiz login failed.");
+			lock (_connectLock)
+				{
+				token.ThrowIfCancellationRequested ();
+				if (_disposed) throw new OperationCanceledException ();
+				lock (_clientLock)
+					{
+					_client = newClient;
+					_clientHttp = newHttp;
+					}
+				_workQueue.SetClient (newClient);
+				published = true;
+				}
+			Log ("Connected to Overkiz API");
 			}
-		else
+		finally
 			{
-			if (string.IsNullOrEmpty (_cloudUsername) || string.IsNullOrEmpty (_cloudPassword))
-				throw new InvalidOperationException ("Cloud mode requires CloudUsername and CloudPassword.");
-
-			if (!Enum.TryParse<Server> (_cloudServer, out Server serverEnum))
-				serverEnum = Server.SomfyEurope;
-
-			newClient = new OverkizClient (
-				username: _cloudUsername,
-				password: _cloudPassword,
-				server: OverkizConst.SupportedServers[serverEnum],
-				httpClient: _httpClient);
-
-			Log ("Using Cloud mode: " + _cloudServer);
+			if (!published)
+				{
+				try { if (newClient != null) await newClient.DisposeAsync ().ConfigureAwait (false); }
+				finally { newHttp?.Dispose (); }
+				}
 			}
-
-		var ok = await newClient.Login ().ConfigureAwait (false);
-		if (!ok)
-			throw new InvalidOperationException ("Overkiz login failed.");
-
-		lock (_clientLock)
-			_client = newClient;
-
-		_workQueue.SetClient (newClient);
-		Log ("Connected to Overkiz API");
 		}
 
 	private void DisposeClient ()
@@ -662,10 +710,13 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		_workQueue.SetClient (null);
 
 		OverkizClient old;
+		HttpClient oldHttp;
 		lock (_clientLock)
 			{
 			old = _client;
+			oldHttp = _clientHttp;
 			_client = null;
+			_clientHttp = null;
 			}
 
 		if (old != null)
@@ -680,6 +731,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					{
 					Log ("DisposeClient error: " + ex.ToString ());
 					}
+				finally { oldHttp?.Dispose (); }
 			});
 			}
 		}
@@ -689,7 +741,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	/// <summary>
 	/// Recursively walks the <see cref="Place"/> tree rooted at
 	/// <paramref name="place"/> and populates <see cref="_placeLabels"/>
-	/// with every oid → label pair found.
+	/// with every oid â†’ label pair found.
 	/// </summary>
 	private void BuildPlaceLabels (Place place)
 		{
@@ -1260,191 +1312,203 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			return;
 
 		IReadOnlyList<Device> devices = await client.GetDevices ().ConfigureAwait (false);
-		Log ("Discovered " + devices.Count + " total devices");
-
-		List<ConfigurableDriverEntity> controllersToAdd = [];
-		Dictionary<string, PlatformManagedDevice> managedDevicesCopy =
-			ManagedDevices != null
-				? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
-				: new Dictionary<string, PlatformManagedDevice> ();
-
-		foreach (Device device in devices)
+		lock (_connectLock)
 			{
-			if (device.DeviceUrl == null)
+			if (_disposed || ct.IsCancellationRequested)
+				return;
+			lock (_clientLock)
+				if (!ReferenceEquals (client, _client))
+					return;
+			Log ("Discovered " + devices.Count + " total devices");
+
+			List<ConfigurableDriverEntity> controllersToAdd = [];
+			Dictionary<string, PlatformManagedDevice> managedDevicesCopy =
+				ManagedDevices != null
+					? new Dictionary<string, PlatformManagedDevice> (ManagedDevices)
+					: new Dictionary<string, PlatformManagedDevice> ();
+
+			foreach (Device device in devices)
 				{
-				Log ("Skipping device (no URL): " + (device.Label ?? "(no label)"));
-				continue;
-				}
-
-			var url = device.DeviceUrl;
-
-			// Exclude infrastructure/internal nodes
-			if (url.StartsWith ("internal://", StringComparison.OrdinalIgnoreCase))
-				{
-				Log ("Skipping internal: " + url);
-				continue;
-				}
-
-			if (url.StartsWith ("zigbee://", StringComparison.OrdinalIgnoreCase))
-				{
-				Log ("Skipping zigbee: " + url);
-				continue;
-				}
-
-			// Require actuator type
-			if (device.Type != ProductType.Actuator)
-				{
-				Log ("Skipping non-actuator: " + url + " | Type=" + device.Type);
-				continue;
-				}
-
-			Log ("Evaluating: " + (device.Label ?? url) + " | UIClass=" + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none") + " | Protocol=" + (device.Protocol.HasValue ? device.Protocol.Value.ToString () : "unknown") + " | URL=" + url);
-
-			IOverkizEntity entity = TryCreateEntity (url, device);
-			if (entity == null)
-				{
-				Log ("No entity factory match: " + url + " | UIClass=" + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none"));
-				continue;
-				}
-
-			var label = NormalizeLabel (device.Label ?? url);
-			Log ("Queuing device: " + label + " | UIClass: " + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none") + " | Protocol: " + (device.Protocol.HasValue ? device.Protocol.Value.ToString () : "unknown") + " | URL: " + url);
-
-			lock (_entitiesLock)
-				{
-				if (_entities.ContainsKey (url))
+				if (device.DeviceUrl == null)
+					{
+					Log ("Skipping device (no URL): " + (device.Label ?? "(no label)"));
 					continue;
-
-				_entities[url] = entity;
-
-				var configurableEntity = new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null);
-				controllersToAdd.Add (configurableEntity);
-				var managedDevice = new PlatformManagedDevice (
-						entity.UxCategory,
-						label,
-						"Somfy / Overkiz",
-						device.UiClass.HasValue ? device.UiClass.Value.ToString () : entity.UxCategory.ToString (),
-						null);
-				managedDevicesCopy[entity.ControllerId] = managedDevice;
-				LogDiscoveryAudit (
-					entityType: entity.GetType ().Name,
-					label: label,
-					overkizUrl: url,
-					entityControllerId: entity.ControllerId,
-					configurableDriverEntityId: entity.ControllerId,
-					managedDevicesKey: entity.ControllerId,
-					managedDevice: managedDevice);
-
-				Log ("Queued device: " + label + " (id=" + entity.ControllerId + ", url=" + url + ")");
-				}
-			}
-
-		if (controllersToAdd.Count > 0)
-			{
-			ct.ThrowIfCancellationRequested ();
-			Log ("DiscoverDevicesAsync - UpdateSubControllers start count=" + controllersToAdd.Count);
-			UpdateSubControllers (controllersToAdd, null);
-			Log ("DiscoverDevicesAsync - UpdateSubControllers complete count=" + controllersToAdd.Count);
-
-			ManagedDevices = managedDevicesCopy;
-			Log ("DiscoverDevicesAsync - publishing platform:managedDevices count=" + ManagedDevices.Count);
-			NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
-
-			Log ("Published " + controllersToAdd.Count + " shade(s)");
-
-			// Diagnostic: log what's in ManagedDevices
-			foreach (var kvp in managedDevicesCopy)
-				Log ("  ManagedDevice[" + kvp.Key + "] = Name:'" + kvp.Value.Name + "', Mfr:'" + kvp.Value.Manufacturer + "'");
-			}
-
-		// Build room groupings unconditionally — a previously-known shade may now
-		// satisfy the minimum count even if no new shades were discovered this pass.
-		if (_roomGroups.Count > 0)
-			{
-			ct.ThrowIfCancellationRequested ();
-
-			// Build a label → url reverse map from all known entities (not just newly queued ones).
-			var labelToUrl = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
-			lock (_entitiesLock)
-				{
-				foreach (KeyValuePair<string, IOverkizEntity> kv in _entities)
-					{
-					if (kv.Value is OverkizShadeEntity shade)
-						{
-						labelToUrl[shade.ApiLabel] = kv.Key;
-						Log ("RoomGroup labelMap: '" + shade.ApiLabel + "' → " + kv.Key);
-						}
 					}
-				}
 
-			// Reset room tracking so we always rebuild from the full known set.
-			lock (_entitiesLock)
-				{
-				foreach (KeyValuePair<string, RoomGroupEntry> group in _roomGroups)
+				var url = device.DeviceUrl;
+
+				// Exclude infrastructure/internal nodes
+				if (url.StartsWith ("internal://", StringComparison.OrdinalIgnoreCase))
 					{
-					var roomKey = group.Key;
-					RoomGroupEntry entry = group.Value;
-					var matchedUrls = entry.Members
-						.Where (m => labelToUrl.ContainsKey (m.ApiLabel))
-						.Select (m => labelToUrl[m.ApiLabel])
-						.ToList ();
+					Log ("Skipping internal: " + url);
+					continue;
+					}
 
-					if (matchedUrls.Count == 0)
-						{
-						Log ("RoomGroup '" + roomKey + "': no matching shades found");
+				if (url.StartsWith ("zigbee://", StringComparison.OrdinalIgnoreCase))
+					{
+					Log ("Skipping zigbee: " + url);
+					continue;
+					}
+
+				// Require actuator type
+				if (device.Type != ProductType.Actuator)
+					{
+					Log ("Skipping non-actuator: " + url + " | Type=" + device.Type);
+					continue;
+					}
+
+				Log ("Evaluating: " + (device.Label ?? url) + " | UIClass=" + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none") + " | Protocol=" + (device.Protocol.HasValue ? device.Protocol.Value.ToString () : "unknown") + " | URL=" + url);
+
+				lock (_entitiesLock)
+					if (_entities.ContainsKey (url))
 						continue;
-						}
 
-					_placeLabels[roomKey] = entry.RoomDisplayName;
-					foreach (var shadeUrl in matchedUrls)
-						TrackShadeInRoom (shadeUrl, roomKey);
-
-					Log ("RoomGroup '" + roomKey + "': matched " + matchedUrls.Count + " shade(s): " + string.Join (", ", entry.Members.Where (m => labelToUrl.ContainsKey (m.ApiLabel)).Select (m => m.ApiLabel)));
-					}
-				}
-
-			// Create room aggregate entities for any room with ≥1 tracked shade.
-			// If more shades arrive later (via events), the room will be rebuilt then.
-			List<ConfigurableDriverEntity> roomControllersToAdd = [];
-			managedDevicesCopy = new Dictionary<string, PlatformManagedDevice> (ManagedDevices ?? managedDevicesCopy);
-			lock (_entitiesLock)
-				{
-				foreach (KeyValuePair<string, List<string>> kv in _roomToShades.ToList ())
+				IOverkizEntity entity = TryCreateEntity (url, device);
+				if (entity == null)
 					{
-					if (kv.Value.Count < 1)
+					Log ("No entity factory match: " + url + " | UIClass=" + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none"));
+					continue;
+					}
+
+				var label = NormalizeLabel (device.Label ?? url);
+				Log ("Queuing device: " + label + " | UIClass: " + (device.UiClass.HasValue ? device.UiClass.Value.ToString () : "none") + " | Protocol: " + (device.Protocol.HasValue ? device.Protocol.Value.ToString () : "unknown") + " | URL: " + url);
+
+				lock (_entitiesLock)
+					{
+					if (_entities.ContainsKey (url))
 						continue;
-					(OverkizRoomEntity roomEntity, Dictionary<string, PlatformManagedDevice> updatedDevices) = CreateRoomEntityLocked (kv.Key, managedDevicesCopy);
-					if (roomEntity != null)
-						{
-						managedDevicesCopy = updatedDevices;
-						roomControllersToAdd.Add (new ConfigurableDriverEntity (roomEntity.ControllerId, roomEntity, null));
-						Log ("Room entity created: " + roomEntity.ControllerId + " (" + kv.Value.Count + " shade(s))");
-						}
+
+					_entities[url] = entity;
+
+					var configurableEntity = new ConfigurableDriverEntity (entity.ControllerId, (ReflectedAttributeDriverEntity)entity, null);
+					controllersToAdd.Add (configurableEntity);
+					var managedDevice = new PlatformManagedDevice (
+							entity.UxCategory,
+							label,
+							"Somfy / Overkiz",
+							device.UiClass.HasValue ? device.UiClass.Value.ToString () : entity.UxCategory.ToString (),
+							null);
+					managedDevicesCopy[entity.ControllerId] = managedDevice;
+					LogDiscoveryAudit (
+						entityType: entity.GetType ().Name,
+						label: label,
+						overkizUrl: url,
+						entityControllerId: entity.ControllerId,
+						configurableDriverEntityId: entity.ControllerId,
+						managedDevicesKey: entity.ControllerId,
+						managedDevice: managedDevice);
+
+					Log ("Queued device: " + label + " (id=" + entity.ControllerId + ", url=" + url + ")");
 					}
 				}
 
-			if (roomControllersToAdd.Count > 0)
+			if (controllersToAdd.Count > 0)
 				{
-				UpdateSubControllers (roomControllersToAdd, null);
+				ct.ThrowIfCancellationRequested ();
+				Log ("DiscoverDevicesAsync - UpdateSubControllers start count=" + controllersToAdd.Count);
+				UpdateSubControllers (controllersToAdd, null);
+				Log ("DiscoverDevicesAsync - UpdateSubControllers complete count=" + controllersToAdd.Count);
+
 				ManagedDevices = managedDevicesCopy;
+				Log ("DiscoverDevicesAsync - publishing platform:managedDevices count=" + ManagedDevices.Count);
 				NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+
+				Log ("Published " + controllersToAdd.Count + " shade(s)");
+
+				// Diagnostic: log what's in ManagedDevices
+				foreach (var kvp in managedDevicesCopy)
+					Log ("  ManagedDevice[" + kvp.Key + "] = Name:'" + kvp.Value.Name + "', Mfr:'" + kvp.Value.Manufacturer + "'");
 				}
 
-			// Start polling for room entities (marks them online).
-			lock (_entitiesLock)
+			// Build room groupings unconditionally — a previously-known shade may now
+			// satisfy the minimum count even if no new shades were discovered this pass.
+			if (_roomGroups.Count > 0)
 				{
-				foreach (OverkizRoomEntity r in _roomEntities.Values)
-					r.StartPolling (_workQueue);
+				ct.ThrowIfCancellationRequested ();
+
+				// Build a label â†’ url reverse map from all known entities (not just newly queued ones).
+				var labelToUrl = new Dictionary<string, string> (StringComparer.OrdinalIgnoreCase);
+				lock (_entitiesLock)
+					{
+					foreach (KeyValuePair<string, IOverkizEntity> kv in _entities)
+						{
+						if (kv.Value is OverkizShadeEntity shade)
+							{
+							labelToUrl[shade.ApiLabel] = kv.Key;
+							Log ("RoomGroup labelMap: '" + shade.ApiLabel + "' â†’ " + kv.Key);
+							}
+						}
+					}
+
+				// Reset room tracking so we always rebuild from the full known set.
+				lock (_entitiesLock)
+					{
+					foreach (KeyValuePair<string, RoomGroupEntry> group in _roomGroups)
+						{
+						var roomKey = group.Key;
+						RoomGroupEntry entry = group.Value;
+						var matchedUrls = entry.Members
+							.Where (m => labelToUrl.ContainsKey (m.ApiLabel))
+							.Select (m => labelToUrl[m.ApiLabel])
+							.ToList ();
+
+						if (matchedUrls.Count == 0)
+							{
+							Log ("RoomGroup '" + roomKey + "': no matching shades found");
+							continue;
+							}
+
+						_placeLabels[roomKey] = entry.RoomDisplayName;
+						foreach (var shadeUrl in matchedUrls)
+							TrackShadeInRoom (shadeUrl, roomKey);
+
+						Log ("RoomGroup '" + roomKey + "': matched " + matchedUrls.Count + " shade(s): " + string.Join (", ", entry.Members.Where (m => labelToUrl.ContainsKey (m.ApiLabel)).Select (m => m.ApiLabel)));
+						}
+					}
+
+				// Create room aggregate entities for any room with â‰¥1 tracked shade.
+				// If more shades arrive later (via events), the room will be rebuilt then.
+				List<ConfigurableDriverEntity> roomControllersToAdd = [];
+				managedDevicesCopy = new Dictionary<string, PlatformManagedDevice> (ManagedDevices ?? managedDevicesCopy);
+				lock (_entitiesLock)
+					{
+					foreach (KeyValuePair<string, List<string>> kv in _roomToShades.ToList ())
+						{
+						if (kv.Value.Count < 1)
+							continue;
+						(OverkizRoomEntity roomEntity, Dictionary<string, PlatformManagedDevice> updatedDevices) = CreateRoomEntityLocked (kv.Key, managedDevicesCopy);
+						if (roomEntity != null)
+							{
+							managedDevicesCopy = updatedDevices;
+							roomControllersToAdd.Add (new ConfigurableDriverEntity (roomEntity.ControllerId, roomEntity, null));
+							Log ("Room entity created: " + roomEntity.ControllerId + " (" + kv.Value.Count + " shade(s))");
+							}
+						}
+					}
+
+				if (roomControllersToAdd.Count > 0)
+					{
+					UpdateSubControllers (roomControllersToAdd, null);
+					ManagedDevices = managedDevicesCopy;
+					NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+					}
+
+				// Start polling for room entities (marks them online).
+				lock (_entitiesLock)
+					{
+					foreach (OverkizRoomEntity r in _roomEntities.Values)
+						r.StartPolling (_workQueue);
+					}
+
+				Log ("Published " + roomControllersToAdd.Count + " room(s)");
+				}
+			else
+				{
+				Log ("RoomGroups not configured — no room entities will be created");
 				}
 
-			Log ("Published " + roomControllersToAdd.Count + " room(s)");
+			Log ("Discovery complete");
 			}
-		else
-			{
-			Log ("RoomGroups not configured — no room entities will be created");
-			}
-
-		Log ("Discovery complete");
 		}
 
 	/// <summary>

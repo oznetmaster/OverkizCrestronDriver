@@ -1,0 +1,31 @@
+<!-- Copyright (c) 2026 Neil Colvin. MIT License with Commons Clause; see LICENSE. -->
+<Project>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="$(MSBuildProjectName).Local.targets" Condition="Exists('$(MSBuildProjectName).Local.targets')" />
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework><IsPackable>false</IsPackable><IsTestProject>false</IsTestProject><IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    <ProcessorTestSdkRoot Condition="'$(ProcessorTestSdkRoot)' == ''">$(MSBuildProjectDirectory)\..\..\CrestronHomeNUnit</ProcessorTestSdkRoot>
+    <BuildProcessorTestPackages Condition="'$(BuildProcessorTestPackages)' == '' And '$(BuildingInsideVisualStudio)' == 'true'">true</BuildProcessorTestPackages>
+    <BuildProcessorTestPackages Condition="'$(BuildProcessorTestPackages)' == ''">false</BuildProcessorTestPackages>
+    <AssemblyName>OverkizCrestronDriver.ProcessorTests</AssemblyName><RootNamespace>CrestronHomeNUnit.Driver</RootNamespace><Version>1.0.0</Version><ProcessorExpectedTestCount>47</ProcessorExpectedTestCount>
+  </PropertyGroup>
+  <Import Project="$(ProcessorTestSdkRoot)\ProcessorTestPackage\ProcessorTestPackage.props" Condition="'$(BuildProcessorTestPackages)' == 'true'" />
+  <ItemGroup Condition="'$(BuildProcessorTestPackages)' == 'true'">
+    <ProjectReference Include="..\OverkizCrestronDriver.Tests\OverkizCrestronDriver.Tests.csproj" />
+    <ProjectReference Include="..\OverKizCrestronDriver\OverKizCrestronDriver.csproj" AdditionalProperties="BuildForTests=true;DeployAfterBuild=false;SkipDriverVersionBump=true" />
+    <ProcessorTestData Include="..\OverKizCrestronDriver\IncludeInPkg\**\*" Exclude="..\OverKizCrestronDriver\IncludeInPkg\**\*.xsd" TargetPath="DriverTestData\%(RecursiveDir)%(Filename)%(Extension)" />
+    <ProcessorTestData Include="..\OverKizCrestronDriver\Shade_Overkiz_IP_V2.json" TargetPath="DriverTestData\DriverDefinition.json" />
+    <ProcessorTestData Include="..\LICENSE" TargetPath="Licenses\Package\LICENSE" />
+    <ProcessorTestData Include="THIRD-PARTY-NOTICES.md" TargetPath="Licenses\Package\THIRD-PARTY-NOTICES.md" />
+    <ProcessorTestData Include="licenses\*" TargetPath="Licenses\Package\licenses\%(Filename)%(Extension)" />
+  </ItemGroup>
+  <Import Project="$(ProcessorTestSdkRoot)\ProcessorTestPackage\ProcessorTestPackage.targets" Condition="'$(BuildProcessorTestPackages)' == 'true'" />
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup Condition="'$(BuildProcessorTestPackages)' != 'true'"><BuildDependsOn>SkipProcessorPackage</BuildDependsOn><RebuildDependsOn>SkipProcessorPackage</RebuildDependsOn></PropertyGroup>
+  <Target Name="SkipProcessorPackage"><Message Importance="high" Text="Build this processor project in Visual Studio or set BuildProcessorTestPackages=true." /></Target>
+  <Target Name="ExcludeDesktopTestTooling" BeforeTargets="MergeDependencies" Condition="'$(BuildProcessorTestPackages)' == 'true'">
+    <ItemGroup>
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="$([System.String]::Copy('%(ReferenceCopyLocalPaths.NuGetPackageId)').ToLowerInvariant().StartsWith('microsoft.testing.')) Or $([System.String]::Copy('%(ReferenceCopyLocalPaths.NuGetPackageId)').ToLowerInvariant().StartsWith('microsoft.testplatform.')) Or '%(ReferenceCopyLocalPaths.NuGetPackageId)' == 'Microsoft.ApplicationInsights' Or '%(ReferenceCopyLocalPaths.NuGetPackageId)' == 'Microsoft.CodeCoverage' Or '%(ReferenceCopyLocalPaths.NuGetPackageId)' == 'NUnit3TestAdapter'" />
+    </ItemGroup>
+  </Target>
+</Project>

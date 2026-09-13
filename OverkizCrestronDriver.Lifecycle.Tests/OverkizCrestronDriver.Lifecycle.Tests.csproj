@@ -1,0 +1,25 @@
+<!-- Copyright (c) 2026 Neil Colvin. MIT with Commons Clause; see LICENSE. -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework><LangVersion>latest</LangVersion><Nullable>annotations</Nullable>
+    <IsTestProject>true</IsTestProject><IsPackable>false</IsPackable><IsPublishable>false</IsPublishable>
+  </PropertyGroup>
+  <!-- Compile the same driver and fixture sources against the SDK's desktop runtime.
+       The net472 test project references the real production assembly for the processor. -->
+  <Import Project="DesktopTest.Local.props" Condition="Exists('DesktopTest.Local.props')" />
+  <ItemGroup>
+    <Reference Include="Newtonsoft.Json.Compact" Condition="Exists('$(CompactJsonPath)')">
+      <HintPath>$(CompactJsonPath)</HintPath><Private>true</Private>
+    </Reference>
+    <PackageReference Include="OverkizClient" Version="1.2.0" />
+    <PackageReference Include="Crestron.DeviceDrivers.DevKit" Version="27.0.24" />
+    <PackageReference Include="NUnit" Version="4.6.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.3.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" PrivateAssets="all" />
+    <Compile Include="../OverKizCrestronDriver/*.cs" Exclude="../OverKizCrestronDriver/*EntryPoint.cs;../OverKizCrestronDriver/EntryPoint.cs;../OverKizCrestronDriver/TestAssemblyAccess.cs" Link="Driver/%(Filename)%(Extension)" />
+    <Compile Include="../OverKizCrestronDriver/Definitions/*.cs" Link="Driver/Definitions/%(Filename)%(Extension)" />
+    <Compile Include="../OverkizCrestronDriver.Tests/*.cs" Link="Tests/%(Filename)%(Extension)" />
+    <None Include="../OverKizCrestronDriver/IncludeInPkg/**/*" Exclude="../OverKizCrestronDriver/IncludeInPkg/**/*.xsd" Link="DriverTestData/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../OverKizCrestronDriver/Shade_Overkiz_IP_V2.json" Link="DriverTestData/DriverDefinition.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,5 +1,7 @@
 # OverkizCrestronDriver
 
+See the [changelog](CHANGELOG.md) for release history and the [draft release notes](RELEASE-NOTES.md) for the next driver update. Driver releases are made for runtime fixes or dependency changes; adding tests alone does not require a driver release.
+
 A **Crestron Home** platform driver that integrates Overkiz-compatible smart-home gateways
 (Somfy TaHoma, Atlantic Cozytouch, Hitachi Hi Kumo, and others) as managed shade/blind devices,
 supporting both cloud and local LAN connections.
@@ -182,3 +184,53 @@ explicitly permitted, even where a fee is charged for that service.
 > which is subject to Crestron's SDK license agreement. That license governs the SDK libraries only;
 > the source code in this repository is licensed independently under the terms above.
 
+
+
+## Automated tests
+
+The solution includes `OverkizCrestronDriver.Tests` (NUnit 4 with the Visual Studio NUnit adapter) and `OverkizCrestronDriver.ProcessorTests` (a standalone Crestron Home Utility test package). The 25 offline tests exercise driver logic without credentials or real device commands. The 22 processor lifecycle cases are excluded on Windows in this project; the dedicated desktop SDK harness exercises the same fixture sources.
+
+```powershell
+dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -c Release
+```
+
+Build the processor project in Debug in Visual Studio to build and deploy using private deployment settings. See [processor test instructions](OverkizCrestronDriver.ProcessorTests/README.md) for setup, suites, tile operation and UI separation. Processor packages are not published to NuGet. See [CHANGELOG](CHANGELOG.md) for changes.
+
+
+### Expanded driver behavior tests
+
+Cover device filtering, restored room groups, stable children across discovery, rename/removal and late login/discovery completion. Clearing or disposing the platform now removes child controllers and rejects stale work. Reconnect creates and disposes a separate HTTP client for each connection, avoiding attempts to change BaseAddress after requests have started.
+
+Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name.
+
+The current package contains **25 offline tests** and **22 SDK entity/lifecycle tests**. The processor package remains **net472 only**, appears under **Utility** in Configure, and can run independently through its own tile or the Windows NUnit runner. These fixtures use synthetic data and do not operate installed devices or authenticate with real accounts.
+
+`OverkizCrestronDriver.Lifecycle.Tests` runs the entity checks against the real desktop SDK on .NET 10. It compiles the relevant driver sources and shares fixture sources with the net472 processor tests. Building this project does not deploy a driver. A locally supplied `Newtonsoft.Json.Compact.dll` is needed by the SDK's manifest reader; it is supplied by the processor at runtime and must not be added to source control or bundled with the processor test package.
+
+```powershell
+dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj --filter "TestCategory!=Processor"
+dotnet test OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycle.Tests.csproj
+```
+
+Set `CompactJsonPath` in the desktop test project's private `DesktopTest.Local.props`, excluded through `.git/info/exclude`, or pass it as an MSBuild property. Keep machine paths and credentials out of tracked files.
+
+Desktop success does not establish Mono compatibility. Build the processor test project in Visual Studio, deploy it, and run both suites on the processor. The fixtures cover configuration, restoration, refresh/reconnect races and disposal using simulated responses. Real installed-driver health and optional live-device checks remain separate from these repeatable suites.
+
+
+### Driver build and release versions
+
+The driver's JSON manifest is the source of its four-component build version. Debug builds increment only the fourth component; for example, `2.0.001.0005` becomes `2.0.001.0006`. MSBuild's `Version` and default `PackageVersion` are derived from that same manifest and refreshed after the increment; their numeric form is `2.0.1.6`. Assembly binding versions remain separate. Test-only references and IDE design-time builds do not increment the production driver version.
+
+GitHub tags and NuGet releases retain three components: `v2.0.1` and `2.0.1`. Prepare the manifest's first three components for the intended release before tagging. Release CI checks that the tag matches, resets the fourth component to zero, and verifies the generated `.pkg` version against the manifest and release version before publishing. It does not increment the selected patch again. Local Release builds preserve the manifest. A later Debug build can legitimately be newer than a published release; the processor test package has its own independent version.
+
+Deployment validation compares the exact built `.pkg` against the imported catalogue entry and installed instance, numerically including all four components. Upload/import alone does not activate the new version. Keep the tested package and its hash: rebuilding creates a new artifact that must be validated again.
+
+Run `pwsh -File tools/Test-DriverVersioning.ps1` to check these rules with temporary manifests; this does not change the working driver manifest or deploy anything.
+
+See [versioning details](docs/Versioning.md) for build, release and installed-instance verification rules.
+### Desktop SDK dependency in CI
+
+The SDK's desktop manifest reader needs its `Newtonsoft.Json.Compact.dll` runtime dependency. Supply a local SDK/runtime copy through the `CompactJsonPath` MSBuild property (or private `DesktopTest.Local.props`). Maintainer CI restores the same verified copy from encrypted Actions secrets into its temporary directory; it is not committed, attached to release assets or included in processor packages. Fork pull requests do not receive these secrets and require a trusted maintainer validation run.
+
+
+For automated local tests, processor tests and gated driver deployment, see the [Crestron Home NUnit CI development guide](https://github.com/oznetmaster/CrestronHomeNUnit/blob/HEAD/docs/ContinuousIntegration.md). It covers private configuration, live-test gates, install/update waits, results and optional test-package removal.

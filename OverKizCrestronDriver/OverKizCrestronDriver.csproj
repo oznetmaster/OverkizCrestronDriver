@@ -1,6 +1,12 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(BuildForTests)' == 'true'">
+		<OutputPath>bin\Tests\$(Configuration)\</OutputPath>
+		<IntermediateOutputPath>obj\Tests\$(Configuration)\</IntermediateOutputPath>
+	</PropertyGroup>
+
+  <Import Project="DriverVersion.props" />
+	<PropertyGroup>
 	<TargetFramework>net472</TargetFramework>
 	<OutputType>Library</OutputType>
 	<AssemblyName>Shade_Overkiz_IP_V2</AssemblyName>
@@ -66,12 +72,12 @@
   </PropertyGroup>
 
   <!-- BumpDriverVersion: increments the 4th component of DriverVersion on every Debug build -->
-	<Target Name="BumpDriverVersion" BeforeTargets="BeforeBuild" Condition="'$(SkipDriverVersionBump)' != 'true'">
-	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\BumpDriverVersion.ps1&quot; -ManifestPath &quot;$(MSBuildProjectDirectory)\Shade_Overkiz_IP_V2.json&quot; -Configuration &quot;$(Configuration)&quot;" />
+	<Target Name="BumpDriverVersion" BeforeTargets="BeforeBuild" Condition="'$(BuildForTests)' != 'true' And '$(SkipDriverVersionBump)' != 'true' And '$(DesignTimeBuild)' != 'true'">
+	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\BumpDriverVersion.ps1&quot; -ManifestPath &quot;$(MSBuildProjectDirectory)\Shade_Overkiz_IP_V2.json&quot; -Configuration &quot;$(Configuration)&quot; -ReleaseVersion &quot;$(DriverReleaseVersion)&quot;" />
   </Target>
 
   <!-- MergeDependencies: ILRepack merges runtime deps into the driver DLL -->
-  <Target Name="MergeDependencies" AfterTargets="Build">
+  <Target Name="MergeDependencies" AfterTargets="Build" Condition="'$(BuildForTests)' != 'true'">
 	<ItemGroup>
 	  <MergeInputs Include="$(TargetPath)" />
 	  <MergeInputs Include="$(TargetDir)OverKizApi.dll" />
@@ -114,7 +120,7 @@
   </Target>
 
   <!-- PackageDriver: ManifestUtil creates the .pkg -->
-  <Target Name="PackageDriver" AfterTargets="MergeDependencies">
+  <Target Name="PackageDriver" AfterTargets="MergeDependencies" Condition="'$(BuildForTests)' != 'true'">
 	<RemoveDir Directories="$(TargetDir)patched\IncludeInPkg" />
 	<ItemGroup>
 	  <IncludeInPkgFiles Include="$(MSBuildProjectDirectory)\IncludeInPkg\**\*" Exclude="$(MSBuildProjectDirectory)\IncludeInPkg\**\*.xsd" />

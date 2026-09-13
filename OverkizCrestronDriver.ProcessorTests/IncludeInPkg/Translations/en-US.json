@@ -1,0 +1,10 @@
+{
+  "Title": "OverkizCrestronDriver Tests",
+  "Status": "Test Host",
+  "Suite": "Unit Tests",
+  "Run": "Run Tests",
+  "Discovery": "Test Discovery",
+  "Discover": "Discover Tests",
+  "DesktopConnection": "Desktop Runner",
+  "Lifecycle": "Processor Lifecycle"
+}

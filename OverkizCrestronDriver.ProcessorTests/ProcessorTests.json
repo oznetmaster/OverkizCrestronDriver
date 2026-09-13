@@ -1,0 +1,20 @@
+{
+  "Name": "OverkizCrestronDriver Tests",
+  "Port": 0,
+  "Suites": [
+    {
+      "Id": "unit",
+      "Name": "OverkizCrestronDriver Tests  -  Unit Tests",
+      "FilterXml": "<filter><and><namespace re='1'>^OverkizCrestronDriver[.]Tests($|[.])</namespace><not><cat>Processor</cat></not></and></filter>",
+      "ManualOnly": false,
+      "ExpectedCount": 25
+    },
+    {
+      "Id": "lifecycle",
+      "Name": "OverkizCrestronDriver Tests  -  Processor Lifecycle",
+      "FilterXml": "<filter><cat>Processor</cat></filter>",
+      "ManualOnly": true,
+      "ExpectedCount": 22
+    }
+  ]
+}

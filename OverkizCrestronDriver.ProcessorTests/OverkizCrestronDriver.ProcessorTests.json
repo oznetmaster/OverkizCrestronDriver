@@ -1,0 +1,22 @@
+{
+  "SchemaVersion": "2.0",
+  "GeneralInformation": {
+    "MinSdkVersion": "27.0000.0000",
+    "Guid": "34fe875c-6d27-45ad-a41d-1960039dca61",
+    "DeviceType": "Utility",
+    "Manufacturer": "Neil Colvin",
+    "BaseModel": "OverkizCrestronDriver Tests",
+    "OtherSupportedModels": [],
+    "SupportedSeries": [],
+    "DependencyGroup": "",
+    "Developer": {
+      "Company": "Neil Colvin",
+      "Contact": "Neil Colvin",
+      "Email": "",
+      "Website": "",
+      "PhoneNumber": ""
+    },
+    "DriverVersion": "1.0.000.0000",
+    "VersionDate": "2026-09-13 17:30:16.458"
+  }
+}

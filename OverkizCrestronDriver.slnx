@@ -1,3 +1,6 @@
 <Solution>
   <Project Path="OverKizCrestronDriver/OverKizCrestronDriver.csproj" />
+  <Project Path="OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj" />
+  <Project Path="OverkizCrestronDriver.ProcessorTests/OverkizCrestronDriver.ProcessorTests.csproj" />
+  <Project Path="OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycle.Tests.csproj" />
 </Solution>
