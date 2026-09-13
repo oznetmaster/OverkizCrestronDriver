@@ -2,7 +2,7 @@
 
 ## 2.3.5 — 2026-09-14
 
-[Draft driver release notes](RELEASE-NOTES.md). Test-only changes do not require a driver release.
+[Driver release notes](RELEASE-NOTES.md). Test-only changes do not require a driver release.
 
 - Cover device filtering, restored room groups, stable children across discovery, rename/removal and late login/discovery completion. Clearing or disposing the platform now removes child controllers and rejects stale work. Reconnect creates and disposes a separate HTTP client for each connection, avoiding attempts to change BaseAddress after requests have started.
 
