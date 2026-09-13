@@ -1,6 +1,6 @@
 # OverkizCrestronDriver
 
-See the [changelog](CHANGELOG.md) for release history and the [draft release notes](RELEASE-NOTES.md) for the next driver update. Driver releases are made for runtime fixes or dependency changes; adding tests alone does not require a driver release.
+See the [changelog](CHANGELOG.md) for release history and the [release notes](RELEASE-NOTES.md) for the current driver update. Driver releases are made for runtime fixes or dependency changes; adding tests alone does not require a driver release.
 
 A **Crestron Home** platform driver that integrates Overkiz-compatible smart-home gateways
 (Somfy TaHoma, Atlantic Cozytouch, Hitachi Hi Kumo, and others) as managed shade/blind devices,
