@@ -33,7 +33,7 @@ jobs:
         run: ../CrestronHomeNUnit/tools/InstallCiTools.ps1
       - name: Run NUnit driver tests
         run: |
-          dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -c Release --logger "trx;LogFileName=tests.trx" --results-directory TestResults
+          dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -c Release --filter "TestCategory!=Live" --logger "trx;LogFileName=tests.trx" --results-directory TestResults
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           [xml]$result = Get-Content TestResults/tests.trx -Raw
           $counts = $result.TestRun.ResultSummary.Counters
@@ -57,7 +57,7 @@ jobs:
           "CompactJsonPath=$path" >> $env:GITHUB_ENV
       - name: Run desktop SDK lifecycle harness
         run: |
-          dotnet test OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycle.Tests.csproj -c Release --logger "trx;LogFileName=lifecycle.trx" --results-directory TestResults -p:DeployAfterBuild=false
+          dotnet test OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycle.Tests.csproj -c Release --filter "TestCategory!=Live" --logger "trx;LogFileName=lifecycle.trx" --results-directory TestResults -p:DeployAfterBuild=false
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           [xml]$result = Get-Content TestResults/lifecycle.trx -Raw
           $counts = $result.TestRun.ResultSummary.Counters
