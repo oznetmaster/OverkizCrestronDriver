@@ -17,11 +17,12 @@ The package appears at `bin/Debug/net472/OverkizCrestronDriver.ProcessorTests.pk
 ## Suites
 
 - **Unit Tests**: 25 offline driver cases. Run on Windows through the NUnit Visual Studio adapter or on the processor. No account credentials or physical devices are needed.
-- **Processor Lifecycle**: 12 SDK lifecycle checks. Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name. Run these separately on the processor; the shared desktop harness provides additional validation.
+- **Processor Lifecycle**: 22 SDK lifecycle checks. Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name. Run these separately on the processor; the shared desktop harness provides additional validation.
+- **Live Gateway**: 3 optional read-only checks using an existing local gateway token. Verify discovery, stable child identities and reconnection. These tests do not create tokens or move shades.
 
 Use the Windows runner's **Find packages**, select this package, connect, then select a suite and **Run all**. Discovery uses a dynamically assigned port. The standalone tile exposes the same suites and results. Nothing runs automatically on deployment. Original driver assets are under `DriverTestData`; the test tile's assets retain their own root paths.
 
-These suites do not authenticate with external services or operate physical devices. Processor lifecycle results must be verified on real hardware; desktop unit success does not establish processor lifecycle compatibility.
+Unit and lifecycle suites use synthetic responses. The live suite authenticates with the configured gateway and requires at least one supported actuator. Copy the test project's `LiveTestSettings.example.json` to a private `LiveTestSettings.json`, supply `gatewayHost` and `token`, and load it through the runner's **Test inputs** before selecting **Live Gateway**. Selecting the live suite enables it for that run. Keep this file outside the repository or exclude it with `.git/info/exclude`; it is never part of the package.
 
 This project targets only `net472`. It is not packable or publishable to NuGet. See [third-party notices](THIRD-PARTY-NOTICES.md), the root LICENSE, and [runner documentation](https://github.com/oznetmaster/CrestronHomeNUnit#readme).
 
@@ -30,4 +31,4 @@ This project targets only `net472`. It is not packable or publishable to NuGet. 
 
 Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name.
 
-The package contains 25 offline cases and 22 lifecycle cases. Lifecycle tests exercise newly constructed test entities, not the installed production driver. Both suites are selectable in the Windows runner and through the standalone Utility tile. Processor hardware validation remains required.
+The package contains 25 offline cases, 22 lifecycle cases and 3 optional live cases. Lifecycle and live fixtures exercise newly constructed test entities. Checking the installed production instance is a separate workflow stage. Suites are selectable in the Windows runner and through the standalone Utility tile; the live suite requires private inputs uploaded from the runner.

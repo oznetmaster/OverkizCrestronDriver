@@ -7,7 +7,7 @@
     <ProcessorTestSdkRoot Condition="'$(ProcessorTestSdkRoot)' == ''">$(MSBuildProjectDirectory)\..\..\CrestronHomeNUnit</ProcessorTestSdkRoot>
     <BuildProcessorTestPackages Condition="'$(BuildProcessorTestPackages)' == '' And '$(BuildingInsideVisualStudio)' == 'true'">true</BuildProcessorTestPackages>
     <BuildProcessorTestPackages Condition="'$(BuildProcessorTestPackages)' == ''">false</BuildProcessorTestPackages>
-    <AssemblyName>OverkizCrestronDriver.ProcessorTests</AssemblyName><RootNamespace>CrestronHomeNUnit.Driver</RootNamespace><Version>1.0.0</Version><ProcessorExpectedTestCount>47</ProcessorExpectedTestCount>
+    <AssemblyName>OverkizCrestronDriver.ProcessorTests</AssemblyName><RootNamespace>CrestronHomeNUnit.Driver</RootNamespace><Version>1.0.0</Version><ProcessorExpectedTestCount>50</ProcessorExpectedTestCount>
   </PropertyGroup>
   <Import Project="$(ProcessorTestSdkRoot)\ProcessorTestPackage\ProcessorTestPackage.props" Condition="'$(BuildProcessorTestPackages)' == 'true'" />
   <ItemGroup Condition="'$(BuildProcessorTestPackages)' == 'true'">

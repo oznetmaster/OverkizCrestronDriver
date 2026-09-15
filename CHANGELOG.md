@@ -1,6 +1,13 @@
 # Changelog
 
-## 2.3.5 — 2026-09-14
+## Unreleased
+
+- Add the published Test Explorer workflow adapter, offline discovery CI and independent GitHub processor-test releases. Private workflow plans control optional live tests, actual-driver updates and temporary-instance cleanup.
+
+
+- Add three optional live driver tests for authenticated gateway discovery, stable child identities and reconnection with an existing token. Share the private client-console settings; never generate tokens or operate shades. The processor package now contains 50 tests across unit, lifecycle and live suites.
+
+## 2.3.5 â€” 2026-09-14
 
 [Driver release notes](RELEASE-NOTES.md). Test-only changes do not require a driver release.
 

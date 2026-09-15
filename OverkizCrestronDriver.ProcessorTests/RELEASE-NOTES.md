@@ -1,5 +1,10 @@
 # OverkizCrestronDriver Tests
 
+## Unreleased
+
+- Add a separate, optional Live Gateway suite with three read-only tests. The package contains 50 tests in total.
+- Supply an existing gateway token through private runner inputs. Tests verify discovery, child identity and reconnection without moving shades or generating tokens.
+
 ## 1.0.0 — 2026-09-14
 
 - 25 offline tests and 22 SDK lifecycle tests, shared between desktop validation and the net472 processor package.

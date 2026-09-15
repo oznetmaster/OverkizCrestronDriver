@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="OverkizCrestronDriver.WorkflowTests/OverkizCrestronDriver.WorkflowTests.csproj" />
   <Project Path="OverKizCrestronDriver/OverKizCrestronDriver.csproj" />
   <Project Path="OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj" />
   <Project Path="OverkizCrestronDriver.ProcessorTests/OverkizCrestronDriver.ProcessorTests.csproj" />

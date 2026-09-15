@@ -43,6 +43,8 @@ internal static class TestSupport
 			{
 			string root = TestContext.Parameters.Get ("TestDataDirectory", TestContext.CurrentContext.TestDirectory);
 			string path = Path.Combine (root, "DriverTestData");
+			if (!Directory.Exists (path)) path = Path.Combine (TestContext.CurrentContext.TestDirectory, "DriverTestData");
+			if (!Directory.Exists (path)) path = Path.Combine (TestContext.CurrentContext.TestDirectory, "IncludeInPkg", "DriverTestData");
 			Assert.That (Directory.Exists (path), Is.True, "Original driver UI test data is required.");
 			return path;
 			}

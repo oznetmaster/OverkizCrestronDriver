@@ -1,0 +1,5 @@
+{
+  "enabled": false,
+  "gatewayHost": "gateway.example.invalid",
+  "token": "replace-with-your-existing-local-token"
+}

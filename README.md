@@ -203,7 +203,7 @@ Cover device filtering, restored room groups, stable children across discovery, 
 
 Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name.
 
-The current package contains **25 offline tests** and **22 SDK entity/lifecycle tests**. The processor package remains **net472 only**, appears under **Utility** in Configure, and can run independently through its own tile or the Windows NUnit runner. These fixtures use synthetic data and do not operate installed devices or authenticate with real accounts.
+The current package contains **25 offline tests**, **22 SDK entity/lifecycle tests** and **3 optional live gateway tests**. The processor package remains **net472 only**, appears under **Utility** in Configure, and can run independently through its own tile or the Windows NUnit runner. Unit and lifecycle fixtures use synthetic data. Live fixtures authenticate using an existing token and verify discovery, stable child identities and reconnection without moving shades or generating tokens.
 
 `OverkizCrestronDriver.Lifecycle.Tests` runs the entity checks against the real desktop SDK on .NET 10. It compiles the relevant driver sources and shares fixture sources with the net472 processor tests. Building this project does not deploy a driver. A locally supplied `Newtonsoft.Json.Compact.dll` is needed by the SDK's manifest reader; it is supplied by the processor at runtime and must not be added to source control or bundled with the processor test package.
 
@@ -214,7 +214,9 @@ dotnet test OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycl
 
 Set `CompactJsonPath` in the desktop test project's private `DesktopTest.Local.props`, excluded through `.git/info/exclude`, or pass it as an MSBuild property. Keep machine paths and credentials out of tracked files.
 
-Desktop success does not establish Mono compatibility. Build the processor test project in Visual Studio, deploy it, and run both suites on the processor. The fixtures cover configuration, restoration, refresh/reconnect races and disposal using simulated responses. Real installed-driver health and optional live-device checks remain separate from these repeatable suites.
+Desktop success does not establish Mono compatibility. Build the processor test project in Visual Studio, deploy it, and run the suites on the processor. The fixtures cover configuration, restoration, refresh/reconnect races and disposal using simulated responses. Installed-driver health remains a separate workflow check.
+
+For live tests, copy `OverkizCrestronDriver.Tests/LiveTestSettings.example.json` to a private `LiveTestSettings.json`. The desktop SDK harness reads it from `%LOCALAPPDATA%/OverkizClient` (shared with the client console), or from the NUnit `TestDataDirectory` parameter. Set `enabled` to `true` for local testing, or explicitly supply `EnableLiveTests=true`; `EnableLiveTests=false` always disables it. On the processor, upload the file through **Test inputs** and select **Live Gateway**. See the [processor test instructions](OverkizCrestronDriver.ProcessorTests/README.md). Private tokens and settings must never be committed or packaged.
 
 
 ### Driver build and release versions
@@ -234,3 +236,7 @@ The SDK's desktop manifest reader needs its `Newtonsoft.Json.Compact.dll` runtim
 
 
 For automated local tests, processor tests and gated driver deployment, see the [Crestron Home NUnit CI development guide](https://github.com/oznetmaster/CrestronHomeNUnit/blob/HEAD/docs/ContinuousIntegration.md). It covers private configuration, live-test gates, install/update waits, results and optional test-package removal.
+
+## Visual Studio processor workflow
+
+The solution includes [OverkizCrestronDriver.WorkflowTests](OverkizCrestronDriver.WorkflowTests/README.md), using the published Crestron Home Test Adapter. It exposes the complete gated workflow in Test Explorer while the ordinary NUnit fixtures remain available for local testing. Configure its private settings before execution; hosted CI verifies discovery without accessing hardware.
