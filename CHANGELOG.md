@@ -1,5 +1,12 @@
 # Changelog
 
+## CI package cleanup - 2026-09-15 (no driver or processor package release)
+
+- Update Test Explorer workflow containers to CrestronHomeNUnit.TestAdapter 1.3.0 and document opt-in storage cleanup after successful CI runs.
+- Retain original deployment filenames, protect pre-existing/manual packages and preserve failed-run evidence. Cleanup frees archive storage without rebooting; Home can retain cached catalogue entries until its next planned reboot.
+- Compare executed test identities and packaged discovery against source discovery instead of duplicated count constants. Live suites remain discovery-only in hosted CI; only the documented processor-runtime skips are accepted on Windows.
+- Actual driver/library code is unchanged; no driver release is required.
+
 ## CI validation - 2026-09-15 (no package release)
 
 - Revalidate the current default-branch source after successful release workflows, including version commits created by GitHub Actions.

@@ -6,22 +6,19 @@
       "Id": "unit",
       "Name": "OverkizCrestronDriver Tests  -  Unit Tests",
       "FilterXml": "<filter><and><namespace re='1'>^OverkizCrestronDriver[.]Tests($|[.])</namespace><not><cat>Processor</cat></not></and></filter>",
-      "ManualOnly": false,
-      "ExpectedCount": 25
+      "ManualOnly": false
     },
     {
       "Id": "lifecycle",
       "Name": "OverkizCrestronDriver Tests  -  Processor Lifecycle",
       "FilterXml": "<filter><and><cat>Processor</cat><not><cat>Live</cat></not></and></filter>",
-      "ManualOnly": false,
-      "ExpectedCount": 22
+      "ManualOnly": false
     },
     {
       "Id": "live",
       "Name": "OverkizCrestronDriver Tests - Live Gateway",
       "FilterXml": "<filter><cat>Live</cat></filter>",
-      "ManualOnly": true,
-      "ExpectedCount": 3
+      "ManualOnly": true
     }
   ]
 }

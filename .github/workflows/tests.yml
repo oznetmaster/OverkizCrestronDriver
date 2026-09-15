@@ -31,13 +31,11 @@ jobs:
       - uses: NuGet/setup-nuget@v2
       - name: Install processor packaging tools
         run: ../CrestronHomeNUnit/tools/InstallCiTools.ps1
+      - name: Verify discovery coverage guards
+        run: ./tools/Test-DiscoveredCoverageGuards.ps1
       - name: Run NUnit driver tests
         run: |
-          dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -c Release --filter "TestCategory!=Live" --logger "trx;LogFileName=tests.trx" --results-directory TestResults
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          [xml]$result = Get-Content TestResults/tests.trx -Raw
-          $counts = $result.TestRun.ResultSummary.Counters
-          if ([int]$counts.passed -ne 25 -or [int]$counts.total -ne 47) { throw "Unexpected test counts: $($counts.OuterXml)" }
+          ./tools/Test-DiscoveredCoverage.ps1 -Stage Desktop -Project OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -Framework net472 -AllowProcessorSkips -ResultsDirectory TestResults
       - name: Restore private desktop SDK dependency
         env:
           COMPACT_1: ${{ secrets.CI_COMPACT_JSON_1 }}
@@ -57,23 +55,17 @@ jobs:
           "CompactJsonPath=$path" >> $env:GITHUB_ENV
       - name: Run desktop SDK lifecycle harness
         run: |
-          dotnet test OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycle.Tests.csproj -c Release --filter "TestCategory!=Live" --logger "trx;LogFileName=lifecycle.trx" --results-directory TestResults -p:DeployAfterBuild=false
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          [xml]$result = Get-Content TestResults/lifecycle.trx -Raw
-          $counts = $result.TestRun.ResultSummary.Counters
-          if ([int]$counts.passed -ne 47 -or [int]$counts.total -ne 47) { throw "Unexpected lifecycle harness counts: $($counts.OuterXml)" }
+          ./tools/Test-DiscoveredCoverage.ps1 -Stage Desktop -Project OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycle.Tests.csproj -Framework net10.0 -ResultsDirectory TestResults
       - name: Build processor package
         run: |
           dotnet build OverkizCrestronDriver.ProcessorTests/OverkizCrestronDriver.ProcessorTests.csproj -c Release -p:BuildProcessorTestPackages=true -p:ReleaseVersion=1.0.0 -p:DeployAfterBuild=false "-p:ManifestUtilExe=$env:MANIFEST_UTIL_EXE"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Validate automatic package suites twice
+      - name: Run the packaged unit suite twice
         run: |
           $output = Join-Path $PWD 'OverkizCrestronDriver.ProcessorTests/bin/Release/net472'
           $extracted = Join-Path $env:RUNNER_TEMP 'driver-package-tests'
           [IO.Compression.ZipFile]::ExtractToDirectory((Join-Path $output 'OverkizCrestronDriver.ProcessorTests.pkg'), $extracted)
-          # Count all automatic suites. Processor lifecycle cases are discovered but ignored on Windows.
-          # The desktop SDK harness above executes those cases; hardware CI executes them on the processor.
-          & ../CrestronHomeNUnit/ProcessorTestPackage.Validation/bin/Release/net472/ProcessorTestPackage.Validation.exe (Join-Path $extracted 'OverkizCrestronDriver.ProcessorTests.dll') (Join-Path $PWD 'TestResults/processor') 47 --run-twice
+          ./tools/Test-DiscoveredCoverage.ps1 -Stage Package -SdkRoot ../CrestronHomeNUnit -PackageAssembly (Join-Path $extracted 'OverkizCrestronDriver.ProcessorTests.dll') -SourceInventory TestResults/OverkizCrestronDriver.Lifecycle.Tests/inventory.json -ResultsDirectory TestResults
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()

@@ -13,7 +13,8 @@ $root = $PSScriptRoot
 if ($Package -ne 'OverkizCrestronDriver.ProcessorTests') { throw 'Unsupported release package.' }
 $projectDirectory = Join-Path $root $Package
 foreach ($project in @('OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj', 'OverkizCrestronDriver.Lifecycle.Tests/OverkizCrestronDriver.Lifecycle.Tests.csproj')) {
-    dotnet test "$root/$project" -c Release --filter 'TestCategory!=Live' -p:DeployAfterBuild=false
+    $legacy = $project -like 'OverkizCrestronDriver.Tests/*'
+    & "$root/tools/Test-DiscoveredCoverage.ps1" -Stage Desktop -Project "$root/$project" -Framework $(if ($legacy) { 'net472' } else { 'net10.0' }) -AllowProcessorSkips:$legacy -ResultsDirectory "$root/artifacts/test-results"
     if ($LASTEXITCODE -ne 0) { throw "Desktop tests failed: $project" }
 }
 dotnet build "$projectDirectory/$Package.csproj" -c Release -p:BuildProcessorTestPackages=true -p:DeployAfterBuild=false "-p:ProcessorTestSdkRoot=$SdkRoot" "-p:ReleaseVersion=$Version" "-p:ManifestUtilExe=$ManifestUtilExe" "-p:LocalCrestronSdkLibDir=$(Split-Path $ManifestUtilExe -Parent)"
@@ -26,11 +27,7 @@ $pkg = Join-Path $output "$Package.pkg"
 # Inspect the actual shipped assembly, not just pre-package build output.
 $extracted = Join-Path $root ('artifacts/verify-' + [Guid]::NewGuid().ToString('N'))
 [IO.Compression.ZipFile]::ExtractToDirectory($pkg, $extracted)
-$suites = (Get-Content "$projectDirectory/ProcessorTests.json" -Raw | ConvertFrom-Json).Suites
-if (@($suites | Where-Object { $_.ExpectedCount -le 0 }).Count) { throw 'Every suite needs an expected discovery count.' }
-$expectedTests = ($suites | Measure-Object -Property ExpectedCount -Sum).Sum
-& "$SdkRoot/ProcessorTestPackage.Validation/bin/Release/net472/ProcessorTestPackage.Validation.exe" "$extracted/$Package.dll" "$root/artifacts/validation" $expectedTests
-if ($LASTEXITCODE -ne 0) { throw 'Packaged test discovery failed.' }
+& "$root/tools/Test-DiscoveredCoverage.ps1" -Stage Package -SdkRoot $SdkRoot -PackageAssembly "$extracted/$Package.dll" -SourceInventory "$root/artifacts/test-results/OverkizCrestronDriver.Lifecycle.Tests/inventory.json" -ResultsDirectory "$root/artifacts/validation"
 $manifest = Get-Content "$projectDirectory/$Package.json" -Raw | ConvertFrom-Json
 if ($manifest.GeneralInformation.DeviceType -ne 'Utility') { throw 'Processor test packages must use the Utility category.' }
 $revision = git -C $root rev-parse HEAD
