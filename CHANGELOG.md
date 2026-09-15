@@ -1,5 +1,10 @@
 # Changelog
 
+## Offline release workflow option - 2026-09-15 (no package release)
+
+- Allow an explicit manual release when local hardware or the self-hosted runner is unavailable, with the reason and exact source recorded in the workflow summary.
+- Keep hosted source validation mandatory and preserve all build, test and packaging steps. No runtime, API or package-version changes.
+
 ## CI package cleanup - 2026-09-15 (no driver or processor package release)
 
 - Update Test Explorer workflow containers to CrestronHomeNUnit.TestAdapter 1.3.0 and document opt-in storage cleanup after successful CI runs.
