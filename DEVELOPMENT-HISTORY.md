@@ -11,6 +11,16 @@ See the [product changelog](CHANGELOG.md) for shipped changes. This document pre
 
 <!-- development-history -->
 
+## 2.3.6 dependency and validation work — 2026-09-22
+
+- Restore OverkizClient 2.0.0 from NuGet.org into a fresh cache and verify its release source metadata.
+- Update Microsoft.NET.Test.Sdk to 18.10.1 and CrestronHomeNUnit.TestAdapter to 1.12.1. Retain stable NUnit 4.6.1 and NUnit3TestAdapter 6.3.0; no prerelease packages are resolved.
+- Align the production, desktop lifecycle and processor-test SDK references at 29.0.10. NuGet scans of all five projects, including transitive dependencies, report no known vulnerable or deprecated packages.
+- Pass 47 offline/lifecycle tests and three read-only live tests on each of desktop and processor. Remove the temporary processor test instance and its stored archive after verification; no production-driver deployment or reboot was performed.
+- Verify a complete production merge, serialization-attribute patch and package build with zero warnings or errors.
+
+
+
 ## Offline release workflow option - 2026-09-15 (no package release)
 
 - Allow an explicit manual release when local hardware or the self-hosted runner is unavailable, with the reason and exact source recorded in the workflow summary.

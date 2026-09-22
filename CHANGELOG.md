@@ -8,6 +8,14 @@ scheme described in [README.md](README.md#building-from-source).
 
 This changelog records shipped features, fixes, compatibility and runtime dependency changes. See [development and validation history](DEVELOPMENT-HISTORY.md) for tests, CI, build tooling and work not yet released.
 
+## 2.3.6 — 2026-09-22
+
+- Update OverkizClient to 2.0.0 and Crestron.DeviceDrivers.DevKit to 29.0.10, retaining the existing driver configuration fields, device identities and controls.
+- Remove unused log4net, Polly and related merge dependencies.
+- Preserve serialization-attribute references while patching the merged assembly so the updated models package correctly.
+
+This is a compatible driver update; the client library's breaking API changes are handled internally. See [release notes](RELEASE-NOTES.md).
+
 ## 2.3.5 — 2026-09-14
 
 [Driver release notes](RELEASE-NOTES.md). Test-only changes do not require a driver release.

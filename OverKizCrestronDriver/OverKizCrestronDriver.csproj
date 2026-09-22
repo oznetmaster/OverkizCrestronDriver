@@ -34,8 +34,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="OverkizClient" Version="1.2.0" />
-	<PackageReference Include="Crestron.DeviceDrivers.DevKit" Version="27.0.24" />
+	<PackageReference Include="OverkizClient" Version="2.0.0" />
+	<PackageReference Include="Crestron.DeviceDrivers.DevKit" Version="29.0.10" />
   </ItemGroup>
 
   <ItemGroup>
@@ -81,13 +81,6 @@
 	<ItemGroup>
 	  <MergeInputs Include="$(TargetPath)" />
 	  <MergeInputs Include="$(TargetDir)OverKizApi.dll" />
-	  <MergeInputs Include="$(TargetDir)Polly.dll" />
-	  <MergeInputs Include="$(TargetDir)Polly.Core.dll" />
-	  <MergeInputs Include="$(TargetDir)Polly.Extensions.dll" />
-	  <MergeInputs Include="$(TargetDir)Microsoft.Extensions.Logging.Abstractions.dll" />
-	  <MergeInputs Include="$(TargetDir)Microsoft.Extensions.Options.dll" />
-	  <MergeInputs Include="$(TargetDir)Microsoft.Extensions.Primitives.dll" />
-	  <MergeInputs Include="$(TargetDir)Microsoft.Extensions.DependencyInjection.Abstractions.dll" />
 	  <MergeInputs Include="$(TargetDir)Microsoft.Bcl.AsyncInterfaces.dll" />
 	  <MergeInputs Include="$(TargetDir)System.Text.Json.dll" />
 	  <MergeInputs Include="$(TargetDir)System.Text.Encodings.Web.dll" />
@@ -98,12 +91,8 @@
 	  <MergeInputs Include="$(TargetDir)System.IO.Pipelines.dll" />
 	  <MergeInputs Include="$(TargetDir)System.Threading.Tasks.Extensions.dll" />
 	  <MergeInputs Include="$(TargetDir)System.Net.Http.Json.dll" />
-	  <MergeInputs Include="$(TargetDir)System.Diagnostics.DiagnosticSource.dll" />
-	  <MergeInputs Include="$(TargetDir)log4net.dll" />
 	  <MergeInputs Include="$(TargetDir)Microsoft.Bcl.HashCode.dll" />
 	  <MergeInputs Include="$(TargetDir)Microsoft.Bcl.Memory.dll" />
-	  <MergeInputs Include="$(TargetDir)Microsoft.Bcl.TimeProvider.dll" />
-	  <MergeInputs Include="$(TargetDir)System.ComponentModel.Annotations.dll" />
 	  <MergeInputs Include="$(TargetDir)Hafner.Compatibility.CallerInformationAttributes.G2.dll" />
 	  <MergeInputs Include="$(TargetDir)Hafner.Compatibility.ConstantExpectedAttribute.dll" />
 	  <MergeInputs Include="$(TargetDir)Hafner.Compatibility.DynamicallyAccessedMembersAttribute.dll" />
@@ -116,7 +105,7 @@
 	</ItemGroup>
 	<WriteLinesToFile File="$(TargetDir)merge_inputs.txt" Lines="@(MergeInputs)" Overwrite="true" />
 	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\ILRepackMerge.ps1&quot; -TargetPath &quot;$(TargetPath)&quot; -InputListFile &quot;$(TargetDir)merge_inputs.txt&quot; -LibDir &quot;$(TargetDir.TrimEnd('\'))&quot; -SdkLibDir &quot;$(LocalCrestronSdkLibDir)&quot; -FxRefDir &quot;$(LocalNet472ReferenceAssemblies)&quot; -FxRuntimeDir &quot;$(LocalNetFxRuntimeDir)&quot;" ContinueOnError="$(MergeDependenciesContinueOnError)" />
-	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\PatchMergedAssembly.ps1&quot; -AssemblyPath &quot;$(TargetPath)&quot; -OutputPath &quot;$(TargetDir)patched\$(AssemblyName).dll&quot;" ContinueOnError="false" />
+	<Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)\PatchMergedAssembly.ps1&quot; -AssemblyPath &quot;$(TargetPath)&quot; -OutputPath &quot;$(TargetDir)patched\$(AssemblyName).dll&quot; -ReferenceAssemblyDirectory &quot;$(LocalNet472ReferenceAssemblies)&quot; -SdkLibDir &quot;$(LocalCrestronSdkLibDir)&quot;" ContinueOnError="false" />
   </Target>
 
   <!-- PackageDriver: ManifestUtil creates the .pkg -->

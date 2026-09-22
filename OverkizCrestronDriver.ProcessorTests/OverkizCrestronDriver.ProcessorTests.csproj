@@ -11,6 +11,7 @@
   </PropertyGroup>
   <Import Project="$(ProcessorTestSdkRoot)\ProcessorTestPackage\ProcessorTestPackage.props" Condition="'$(BuildProcessorTestPackages)' == 'true'" />
   <ItemGroup Condition="'$(BuildProcessorTestPackages)' == 'true'">
+    <PackageReference Update="Crestron.DeviceDrivers.DevKit" Version="29.0.10" />
     <ProjectReference Include="..\OverkizCrestronDriver.Tests\OverkizCrestronDriver.Tests.csproj" />
     <ProjectReference Include="..\OverKizCrestronDriver\OverKizCrestronDriver.csproj" AdditionalProperties="BuildForTests=true;DeployAfterBuild=false;SkipDriverVersionBump=true" />
     <ProcessorTestData Include="..\OverKizCrestronDriver\IncludeInPkg\**\*" Exclude="..\OverKizCrestronDriver\IncludeInPkg\**\*.xsd" TargetPath="DriverTestData\%(RecursiveDir)%(Filename)%(Extension)" />

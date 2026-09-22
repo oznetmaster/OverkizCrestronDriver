@@ -1,20 +1,22 @@
-# OverkizCrestronDriver v2.3.5
+# OverkizCrestronDriver v2.3.6
 
-Patch release correcting lifecycle, configuration and recovery defects while preserving the public API and intended driver behavior.
+This patch release updates the client and SDK dependencies while preserving the driver's configuration fields, device identities and shade controls. Existing installations do not need a configuration migration. The driver's version is independent of the client library's major version.
 
-## Fixes
+## Changes
 
-- Reconnect uses a separate, correctly disposed HTTP client for each connection. This fixes reconnect failures caused by changing BaseAddress after the previous client had already sent requests.
-- Clearing configuration or disposing the platform removes child controllers and prevents delayed login or discovery completion from restoring obsolete state.
-- Rediscovery preserves child controller identity and restores room group membership without duplicating controllers.
+- Use the released OverkizClient 2.0.0, with attribute-controlled models, typed events and actions, CLR device values and stronger response validation.
+- Update Crestron.DeviceDrivers.DevKit from 27.0.24 to 29.0.10.
+- Remove unused log4net, Polly and related entries from the merged driver dependencies.
+- Preserve serialization-attribute enum and type references when patching the merged assembly, preventing packaging failures after the model changes.
 
-## Tests and build process
+Logging continues through the Crestron SDK's `DriverControllerLogger`. The production driver does not bundle log4net or Newtonsoft.Json. The SDK's private `Newtonsoft.Json.Compact.dll` remains a desktop test requirement and is supplied by the processor at runtime.
 
-- 25 offline tests and 22 SDK lifecycle tests. The current implementation passes on Windows in Debug and Release; both processor suites passed twice in the same host process.
-- The shared net472 processor test package is available in the solution and appears under **Utility** in Configure. Its standalone Home tile and Windows NUnit runner select the test suites.
-- Driver Debug build versions follow the manifest; three-part release tags select the CI release version. Test builds do not increment or deploy the production driver.
-- Processor test packages are not published to NuGet. Private deployment settings, live inputs and desktop SDK runtime dependencies are excluded from source and release assets.
+## Validation
 
-## Installation and documentation
+The updated dependencies passed 47 offline/lifecycle tests and three read-only live gateway tests on both desktop and processor. The production merge, patch and package build completed without warnings or errors. These tests do not certify every gateway service or processor firmware version.
 
-The GitHub release includes the production driver package and a separate processor test package. The test package appears under Utility in Configure and is not included in the driver NuGet package. See [CHANGELOG.md](CHANGELOG.md) for release history and [README.md](README.md) for installation and testing.
+See the [test setup](README.md#testing), [processor test guide](OverkizCrestronDriver.ProcessorTests/README.md) and [development history](DEVELOPMENT-HISTORY.md) for tooling and validation details. Processor test packages have independent versions and are not included in the production NuGet package.
+
+## Install
+
+Use the production `.pkg` attached to this release, or NuGet package `CrestronHomeDriver.Overkiz.Shades` version `2.3.6`. The package manifest version is `2.3.006.0000`. See [installation instructions](README.md) and the [changelog](CHANGELOG.md).

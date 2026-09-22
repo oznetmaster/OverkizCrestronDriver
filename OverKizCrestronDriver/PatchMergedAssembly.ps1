@@ -11,7 +11,9 @@
 
 param(
 	[Parameter(Mandatory)][string] $AssemblyPath,
-	[string] $OutputPath = ""
+	[string] $OutputPath = "",
+	[string] $ReferenceAssemblyDirectory = $env:NET472_REFERENCE_ASSEMBLIES,
+	[string] $SdkLibDir = $env:CRESTRON_DRIVER_SDK_LIBRARIES
 )
 
 if (-not $OutputPath) {
@@ -46,9 +48,47 @@ function ShouldRename([Mono.Cecil.TypeDefinition]$td) {
 $asmBytes  = [System.IO.File]::ReadAllBytes($AssemblyPath)
 $asmStream = [System.IO.MemoryStream]::new($asmBytes)
 $rp        = [Mono.Cecil.ReaderParameters]::new()
+$resolver  = [Mono.Cecil.DefaultAssemblyResolver]::new()
+foreach ($directory in @([System.IO.Path]::GetDirectoryName($AssemblyPath), $ReferenceAssemblyDirectory, $SdkLibDir)) {
+	if (-not [string]::IsNullOrWhiteSpace($directory) -and (Test-Path -LiteralPath $directory)) {
+		$resolver.AddSearchDirectory($directory)
+	}
+}
+$rp.AssemblyResolver = $resolver
 $asmDef    = [Mono.Cecil.AssemblyDefinition]::ReadAssembly($asmStream, $rp)
 $module    = $asmDef.MainModule
 $count     = 0
+
+# Cecil reads custom-attribute blobs lazily. Decode them before changing type names:
+# enum argument types and typeof values then refer to the original definitions and
+# are re-encoded with their new names when the module is written. Otherwise Cecil
+# can copy an untouched blob containing a now-invalid serialized enum type name.
+function ResolveAttributes($provider) {
+	foreach ($attribute in $provider.CustomAttributes) {
+		$null = $attribute.ConstructorArguments.Count
+		$null = $attribute.Properties.Count
+		$null = $attribute.Fields.Count
+	}
+}
+
+function ResolveTypeAttributes($type) {
+	ResolveAttributes $type
+	foreach ($parameter in $type.GenericParameters) { ResolveAttributes $parameter }
+	foreach ($field in $type.Fields) { ResolveAttributes $field }
+	foreach ($property in $type.Properties) { ResolveAttributes $property }
+	foreach ($event in $type.Events) { ResolveAttributes $event }
+	foreach ($method in $type.Methods) {
+		ResolveAttributes $method
+		ResolveAttributes $method.MethodReturnType
+		foreach ($parameter in $method.Parameters) { ResolveAttributes $parameter }
+		foreach ($parameter in $method.GenericParameters) { ResolveAttributes $parameter }
+	}
+	foreach ($nested in $type.NestedTypes) { ResolveTypeAttributes $nested }
+}
+
+ResolveAttributes $asmDef
+ResolveAttributes $module
+foreach ($type in $module.Types) { ResolveTypeAttributes $type }
 
 # Rename each restricted type's namespace so Crestron's name check never fires.
 # All TypeReference usages in custom attributes point to the same TypeDefinition
@@ -71,12 +111,16 @@ try {
 	try   { $asmDef.Write($fs) }
 	finally { $fs.Dispose() }
 	$asmDef.Dispose()
+	$resolver.Dispose()
+	$asmStream.Dispose()
 	[System.IO.File]::Copy($tempPath, $OutputPath, $true)
 	Remove-Item $tempPath -Force
 	Write-Host "PatchMergedAssembly: $count type(s) renamed -> $OutputPath"
 	exit 0
 } catch {
 	$asmDef.Dispose()
+	$resolver.Dispose()
+	$asmStream.Dispose()
 	if (Test-Path $tempPath) { Remove-Item $tempPath -Force }
 	Write-Error "PatchMergedAssembly: Write failed - $_"
 	exit 1

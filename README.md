@@ -135,12 +135,12 @@ The `ApiLabel` is the raw Overkiz API name used for all room-matching logic. The
 
 ### Dependencies
 
-- [OverkizClient](https://www.nuget.org/packages/OverkizClient) NuGet package (restored automatically)
-- [Crestron.DeviceDrivers.DevKit](https://www.nuget.org/packages/Crestron.DeviceDrivers.DevKit) NuGet package
+- [OverkizClient 2.0.0](https://www.nuget.org/packages/OverkizClient/2.0.0) NuGet package (restored automatically)
+- [Crestron.DeviceDrivers.DevKit 29.0.10](https://www.nuget.org/packages/Crestron.DeviceDrivers.DevKit/29.0.10) NuGet package
 - C# 13 language features compiled for a `.NET Framework 4.7.2` target, with compatibility shim assemblies merged into the driver package as needed
 - [ILRepack](https://github.com/gluck/il-repack) (via `ILRepackMerge.ps1`) to merge dependencies into a self-contained driver DLL
 - `PatchMergedAssembly.ps1` to rewrite merged `System.*` helper types that Crestron Home's Mono sandbox rejects during reflection
-- `ManifestUtil.exe` from the Crestron Driver SDK to produce the final `.pkg`
+- ManifestUtil from the Crestron Driver SDK or its official NuGet tool to produce the final `.pkg`; use `ManifestUtilExe` to select the local launcher
 
 ### Build
 
@@ -233,6 +233,10 @@ Deployment validation compares the exact built `.pkg` against the imported catal
 Run `pwsh -File tools/Test-DriverVersioning.ps1` to check these rules with temporary manifests; this does not change the working driver manifest or deploy anything.
 
 See [versioning details](docs/Versioning.md) for build, release and installed-instance verification rules.
+### Test package versions
+
+Ordinary tests use NUnit 4.6.1, NUnit3TestAdapter 6.3.0 and Microsoft.NET.Test.Sdk 18.10.1. The separate workflow project uses CrestronHomeNUnit.TestAdapter 1.12.1. These are stable development dependencies; NUnit 5 beta is not selected. The processor test project aligns its Crestron SDK reference with the production project at 29.0.10. Desktop test adapters and coverage tooling are excluded from the merged processor package.
+
 ### Desktop SDK dependency in CI
 
 The SDK's desktop manifest reader needs its `Newtonsoft.Json.Compact.dll` runtime dependency. Supply a local SDK/runtime copy through the `CompactJsonPath` MSBuild property (or private `DesktopTest.Local.props`). Maintainer CI restores the same verified copy from encrypted Actions secrets into its temporary directory; it is not committed, attached to release assets or included in processor packages. Fork pull requests do not receive these secrets and require a trusted maintainer validation run.
