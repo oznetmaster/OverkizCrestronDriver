@@ -8,6 +8,14 @@ scheme described in [README.md](README.md#building-from-source).
 
 This changelog records shipped features, fixes, compatibility and runtime dependency changes. See [development and validation history](DEVELOPMENT-HISTORY.md) for tests, CI, build tooling and work not yet released.
 
+## 2.3.7 — 2026-09-28
+
+- Update OverkizClient to 2.1.0 and recover rejected or missing event listeners without duplicate registration after login.
+- Keep event monitoring running after a request timeout.
+- Finish outstanding work before closing a connection and prevent queued work from using its replacement.
+
+Existing configuration fields, device identities and shade controls are unchanged. See [release notes](RELEASE-NOTES.md).
+
 ## 2.3.6 — 2026-09-22
 
 - Update OverkizClient to 2.0.0 and Crestron.DeviceDrivers.DevKit to 29.0.10, retaining the existing driver configuration fields, device identities and controls.

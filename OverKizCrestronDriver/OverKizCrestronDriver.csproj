@@ -34,7 +34,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="OverkizClient" Version="2.0.0" />
+	<PackageReference Include="OverkizClient" Version="2.1.0" />
 	<PackageReference Include="Crestron.DeviceDrivers.DevKit" Version="29.0.10" />
   </ItemGroup>
 

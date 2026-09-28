@@ -196,6 +196,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 	private CancellationTokenSource _eventCts;
 	private Task _eventLoopTask;
+	private Task _clientDisposalTask = Task.CompletedTask;
 	private readonly object _eventLock = new ();
 
 	// ── Work queue (serialises all OverkizClient access) ──────────────────
@@ -208,6 +209,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	internal Func<HttpClient> HttpClientFactory { get; set; }
 	private bool _disposed;
 	internal Func<OverkizClient> ClientFactory { get; set; }
+	internal Func<int, CancellationToken, Task> EventDelay { get; set; } = Task.Delay;
 
 	// ── Configuration controller (exposed to entry point) ─────────────────
 
@@ -661,6 +663,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		OverkizClient newClient = null;
 		HttpClient newHttp = null;
 		bool published = false;
+		await _clientDisposalTask.ConfigureAwait (false);
+		token.ThrowIfCancellationRequested ();
 		try
 			{
 			if (ClientFactory != null)
@@ -721,10 +725,17 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 		if (old != null)
 			{
-			_ = Task.Run (async () =>
+			Task eventLoop;
+			lock (_eventLock)
+				eventLoop = _eventLoopTask ?? Task.CompletedTask;
+			var previousDisposal = _clientDisposalTask;
+			_clientDisposalTask = Task.Run (async () =>
 			{
 				try
 					{
+					await previousDisposal.ConfigureAwait (false);
+					await eventLoop.ConfigureAwait (false);
+					await _workQueue.DrainAsync ().ConfigureAwait (false);
 					await old.DisposeAsync ().ConfigureAwait (false);
 					}
 				catch (Exception ex)
@@ -1311,7 +1322,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		if (client == null)
 			return;
 
-		IReadOnlyList<Device> devices = await client.GetDevices ().ConfigureAwait (false);
+		IReadOnlyList<Device> devices = null;
+		await _workQueue.EnqueueAsync (client, async c => devices = await c.GetDevices ().ConfigureAwait (false)).ConfigureAwait (false);
+		if (devices == null) return;
 		lock (_connectLock)
 			{
 			if (_disposed || ct.IsCancellationRequested)
@@ -1566,7 +1579,16 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			_eventCts?.Dispose ();
 			_eventCts = new CancellationTokenSource ();
 			CancellationToken token = _eventCts.Token;
-			_eventLoopTask = Task.Run (() => RunEventLoopAsync (token));
+			var previousLoop = _eventLoopTask ?? Task.CompletedTask;
+			OverkizClient eventClient;
+			lock (_clientLock)
+				eventClient = _client;
+			_eventLoopTask = Task.Run (async () =>
+				{
+				await previousLoop.ConfigureAwait (false);
+				if (!token.IsCancellationRequested)
+					await RunEventLoopAsync (eventClient, token).ConfigureAwait (false);
+				});
 			}
 
 		Log ("Event loop started");
@@ -1584,36 +1606,27 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		Log ("Event loop stopped");
 		}
 
-	private async Task RunEventLoopAsync (CancellationToken ct)
+	private async Task RunEventLoopAsync (OverkizClient eventClient, CancellationToken ct)
 		{
 		const int POLL_INTERVAL_MS = 2_000;
 		const int RETRY_DELAY_MS = 10_000;
 
-		OverkizClient eventClient;
-		lock (_clientLock)
-			eventClient = _client;
-
 		if (eventClient == null)
 			return;
 
-		Log ("Event loop: registering listener");
-
 		try
 			{
-			await eventClient.RegisterEventListener ().ConfigureAwait (false);
-			Log ("Event loop: listener registered");
-
 			while (!ct.IsCancellationRequested)
 				{
 				try
 					{
-					await Task.Delay (POLL_INTERVAL_MS, ct).ConfigureAwait (false);
+					await EventDelay (POLL_INTERVAL_MS, ct).ConfigureAwait (false);
 
 					if (ct.IsCancellationRequested)
 						break;
 
 					IReadOnlyList<OverKizApi.Models.EventObject> events =
-						await eventClient.FetchEvents ().ConfigureAwait (false);
+						await eventClient.FetchEvents (autoRegister: true).ConfigureAwait (false);
 
 					foreach (OverKizApi.Models.EventObject ev in events)
 						{
@@ -1623,7 +1636,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 						DispatchEvent (ev);
 						}
 					}
-				catch (OperationCanceledException)
+				catch (OperationCanceledException) when (ct.IsCancellationRequested)
 					{
 					break;
 					}
@@ -1633,16 +1646,16 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 					try
 						{
-						await Task.Delay (RETRY_DELAY_MS, ct).ConfigureAwait (false);
+						await EventDelay (RETRY_DELAY_MS, ct).ConfigureAwait (false);
 						}
-					catch (OperationCanceledException)
+					catch (OperationCanceledException) when (ct.IsCancellationRequested)
 						{
 						break;
 						}
 					}
 				}
 			}
-		catch (OperationCanceledException)
+		catch (OperationCanceledException) when (ct.IsCancellationRequested)
 			{
 			}
 		catch (Exception ex)
@@ -1789,7 +1802,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			if (client == null)
 				return;
 
-			IReadOnlyList<OverKizApi.Models.Device> devices = await client.GetDevices ().ConfigureAwait (false);
+			IReadOnlyList<OverKizApi.Models.Device> devices = null;
+			await _workQueue.EnqueueAsync (client, async c => devices = await c.GetDevices ().ConfigureAwait (false)).ConfigureAwait (false);
+			if (devices == null) return;
 			OverKizApi.Models.Device device = devices.FirstOrDefault (d =>
 				string.Equals (d.DeviceUrl, ev.DeviceUrl, StringComparison.OrdinalIgnoreCase));
 

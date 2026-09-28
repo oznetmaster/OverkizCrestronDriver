@@ -10,6 +10,16 @@ See the [product changelog](CHANGELOG.md) for shipped changes. This document pre
 - Test-only or documentation-only changes do not require a product release. Processor-test releases update this history, not the product changelog.
 
 <!-- development-history -->
+## 2.3.7 event recovery and validation — 2026-09-28
+
+- Reference the published OverkizClient 2.1.0 package in production and desktop lifecycle projects.
+- Opt into automatic event-listener recovery and avoid registering again after login. Continue polling after transport timeouts using the existing backoff.
+- Finish the previous event loop and queued requests before client disposal or reconnection; keep work queued for an old connection from running on its replacement.
+- Add ten synthetic regression cases for listener/session recovery, registration reuse, timeout recovery, event-loop restart, disposal ordering and queued-work isolation.
+- Initialize and clean up fixture synchronization state per test, including skipped Windows cases, so the same fixtures run correctly in the merged processor package.
+- Pass all 57 automatic cases in the local workflow and on the CP4-R processor. The standalone Windows net472 run passes 27 portable cases and reports 30 expected SDK-only skips; the desktop SDK harness executes those lifecycle cases. Remove temporary processor instances and stored archives and release every owned reservation.
+- Build the production package using the official ManifestUtil 29.0.10 package with no warnings or errors. Validate the public OverkizClient package independently on both target frameworks before consuming it.
+
 
 ## 2.3.6 dependency and validation work — 2026-09-22
 

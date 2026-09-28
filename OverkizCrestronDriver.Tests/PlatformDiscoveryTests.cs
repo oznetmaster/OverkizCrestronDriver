@@ -53,7 +53,11 @@ public sealed class PlatformDiscoveryTests
 		_http?.Dispose ();
 		_logger?.Dispose ();
 		}
-	private void Set (string name, object value) => typeof (OverkizPlatformDriver).GetField (name, Private).SetValue (_driver, value);
+	private void Set (string name, object value)
+		{
+		typeof (OverkizPlatformDriver).GetField (name, Private).SetValue (_driver, value);
+		if (name == "_client") Field<OverkizWorkQueue> ("_workQueue").SetClient ((OverkizClient)value);
+		}
 	private T Field<T> (string name) => (T)typeof (OverkizPlatformDriver).GetField (name, Private).GetValue (_driver);
 	private object Call (string name, params object[] args) => typeof (OverkizPlatformDriver).GetMethod (name, Private).Invoke (_driver, args);
 	private Dictionary<string, IOverkizEntity> Entities => Field<Dictionary<string, IOverkizEntity>> ("_entities");

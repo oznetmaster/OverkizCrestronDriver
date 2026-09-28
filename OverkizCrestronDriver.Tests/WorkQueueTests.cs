@@ -89,5 +89,32 @@ public sealed class WorkQueueTests
 		await TestSupport.Complete (_queue.EnqueueAsync (c => { ran = true; return Task.CompletedTask; }));
 		Assert.That (ran, Is.True);
 		}
+	[Test]
+	public async Task ReplacingClient_DropsWorkQueuedForThePreviousConnection ()
+		{
+		await using var replacement = new OverkizClient ("synthetic-user", "synthetic-password", new OverkizServer { Name = "Test", Endpoint = "https://example.invalid/", Manufacturer = "Test" });
+		var release = new TaskCompletionSource<bool> (TaskCreationOptions.RunContinuationsAsynchronously);
+		var active = _queue.EnqueueAsync (c => release.Task);
+		bool staleRan = false, newRan = false;
+		var pending = _queue.EnqueueAsync (c => { staleRan = true; return Task.CompletedTask; });
+		_queue.SetClient (replacement);
+		var current = _queue.EnqueueAsync (c => { newRan = ReferenceEquals (c, replacement); return Task.CompletedTask; });
+		release.TrySetResult (true);
+		await TestSupport.Complete (Task.WhenAll (active, pending, current));
+		Assert.That (staleRan, Is.False);
+		Assert.That (newRan, Is.True);
+		}
+
+	[Test]
+	public async Task Drain_WaitsForActiveWorkAfterDetachingClient ()
+		{
+		var release = new TaskCompletionSource<bool> (TaskCreationOptions.RunContinuationsAsynchronously);
+		var active = _queue.EnqueueAsync (c => release.Task);
+		_queue.SetClient (null);
+		var drain = _queue.DrainAsync ();
+		try { Assert.That (drain.IsCompleted, Is.False); }
+		finally { release.TrySetResult (true); await TestSupport.Complete (Task.WhenAll (active, drain)); }
+		}
+
 	[Test] public async Task NullWork_IsIgnored () => await TestSupport.Complete (_queue.EnqueueAsync (null));
 	}

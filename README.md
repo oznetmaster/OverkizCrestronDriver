@@ -135,7 +135,7 @@ The `ApiLabel` is the raw Overkiz API name used for all room-matching logic. The
 
 ### Dependencies
 
-- [OverkizClient 2.0.0](https://www.nuget.org/packages/OverkizClient/2.0.0) NuGet package (restored automatically)
+- [OverkizClient 2.1.0](https://www.nuget.org/packages/OverkizClient/2.1.0) NuGet package (restored automatically)
 - [Crestron.DeviceDrivers.DevKit 29.0.10](https://www.nuget.org/packages/Crestron.DeviceDrivers.DevKit/29.0.10) NuGet package
 - C# 13 language features compiled for a `.NET Framework 4.7.2` target, with compatibility shim assemblies merged into the driver package as needed
 - [ILRepack](https://github.com/gluck/il-repack) (via `ILRepackMerge.ps1`) to merge dependencies into a self-contained driver DLL
@@ -191,7 +191,7 @@ explicitly permitted, even where a fee is charged for that service.
 
 ## Automated tests
 
-The solution includes `OverkizCrestronDriver.Tests` (NUnit 4 with the Visual Studio NUnit adapter) and `OverkizCrestronDriver.ProcessorTests` (a standalone Crestron Home Utility test package). The 25 offline tests exercise driver logic without credentials or real device commands. The 22 processor lifecycle cases are excluded on Windows in this project; the dedicated desktop SDK harness exercises the same fixture sources.
+The solution includes `OverkizCrestronDriver.Tests` (NUnit 4 with the Visual Studio NUnit adapter) and `OverkizCrestronDriver.ProcessorTests` (a standalone Crestron Home Utility test package). The 27 offline tests exercise driver logic without credentials or real device commands. The 30 processor lifecycle cases are excluded on Windows in this project; the dedicated desktop SDK harness exercises the same fixture sources.
 
 ```powershell
 dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -c Release
@@ -206,7 +206,7 @@ Cover device filtering, restored room groups, stable children across discovery, 
 
 Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name.
 
-The current package contains **25 offline tests**, **22 SDK entity/lifecycle tests** and **3 optional live gateway tests**. The processor package remains **net472 only**, appears under **Utility** in Configure, and can run independently through its own tile or the Windows NUnit runner. Unit and lifecycle fixtures use synthetic data. Live fixtures authenticate using an existing token and verify discovery, stable child identities and reconnection without moving shades or generating tokens.
+The current package contains **27 offline tests**, **30 SDK entity/lifecycle tests** and **3 optional live gateway tests**. The processor package remains **net472 only**, appears under **Utility** in Configure, and can run independently through its own tile or the Windows NUnit runner. Unit and lifecycle fixtures use synthetic data. Live fixtures authenticate using an existing token and verify discovery, stable child identities and reconnection without moving shades or generating tokens.
 
 `OverkizCrestronDriver.Lifecycle.Tests` runs the entity checks against the real desktop SDK on .NET 10. It compiles the relevant driver sources and shares fixture sources with the net472 processor tests. Building this project does not deploy a driver. A locally supplied `Newtonsoft.Json.Compact.dll` is needed by the SDK's manifest reader; it is supplied by the processor at runtime and must not be added to source control or bundled with the processor test package.
 

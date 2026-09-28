@@ -16,8 +16,8 @@ The package appears at `bin/Debug/net472/OverkizCrestronDriver.ProcessorTests.pk
 
 ## Suites
 
-- **Unit Tests**: 25 offline driver cases. Run on Windows through the NUnit Visual Studio adapter or on the processor. No account credentials or physical devices are needed.
-- **Processor Lifecycle**: 22 SDK lifecycle checks. Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name. Run these separately on the processor; the shared desktop harness provides additional validation.
+- **Unit Tests**: 27 offline driver cases. Run on Windows through the NUnit Visual Studio adapter or on the processor. No account credentials or physical devices are needed.
+- **Processor Lifecycle**: 30 SDK lifecycle checks, including listener/session recovery, timeout recovery and ordered shutdown. Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name. Run these separately on the processor; the shared desktop harness provides additional validation.
 - **Live Gateway**: 3 optional read-only checks using an existing local gateway token. Verify discovery, stable child identities and reconnection. These tests do not create tokens or move shades.
 
 Use the Windows runner's **Find packages**, select this package, connect, then select a suite and **Run all**. Discovery uses a dynamically assigned port. The standalone tile exposes the same suites and results. Nothing runs automatically on deployment. Original driver assets are under `DriverTestData`; the test tile's assets retain their own root paths.
@@ -31,7 +31,7 @@ This project targets only `net472`. It is not packable or publishable to NuGet. 
 
 Shade commands clamp and invert position correctly without inventing observed state; one-way and favourite-position capabilities are respected; partial events preserve other state; initial and recovered availability agree with SDK snapshots; removing a display override restores the latest API name.
 
-The package contains 25 offline cases, 22 lifecycle cases and 3 optional live cases. Lifecycle and live fixtures exercise newly constructed test entities. Checking the installed production instance is a separate workflow stage. Suites are selectable in the Windows runner and through the standalone Utility tile; the live suite requires private inputs uploaded from the runner.
+The package contains 27 offline cases, 30 lifecycle cases and 3 optional live cases. Lifecycle and live fixtures exercise newly constructed test entities. Checking the installed production instance is a separate workflow stage. Suites are selectable in the Windows runner and through the standalone Utility tile; the live suite requires private inputs uploaded from the runner.
 
 
 Hosted and release validation compare the exact discovered test identities with execution results and the merged package, rather than maintaining a duplicate expected test count. Live tests are discovered but not operated in hosted CI. Only documented processor-runtime skips are accepted by the Windows net472 check; the desktop SDK harness must execute every automatic test successfully.

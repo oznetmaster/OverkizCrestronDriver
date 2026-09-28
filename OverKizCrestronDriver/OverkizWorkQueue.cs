@@ -47,7 +47,10 @@ internal sealed class OverkizWorkQueue
 	/// The returned task completes when the work item has finished (or been
 	/// skipped).  Callers may fire-and-forget it.
 	/// </summary>
-	public async Task EnqueueAsync (Func<OverkizClient, Task> work)
+	public Task EnqueueAsync (Func<OverkizClient, Task> work) => EnqueueAsync (_client, work);
+
+	/// <summary>Runs work only while its original client remains current.</summary>
+	internal async Task EnqueueAsync (OverkizClient expectedClient, Func<OverkizClient, Task> work)
 		{
 		if (_stopped || work == null)
 			return;
@@ -56,7 +59,7 @@ internal sealed class OverkizWorkQueue
 		try
 			{
 			OverkizClient client = _client;
-			if (client == null || _stopped)
+			if (client == null || _stopped || !ReferenceEquals (client, expectedClient))
 				return;
 
 			await work (client).ConfigureAwait (false);
@@ -65,5 +68,12 @@ internal sealed class OverkizWorkQueue
 			{
 			_ = _gate.Release ();
 			}
+		}
+
+	/// <summary>Waits for active work to finish after a client has been detached.</summary>
+	internal async Task DrainAsync ()
+		{
+		await _gate.WaitAsync ().ConfigureAwait (false);
+		_ = _gate.Release ();
 		}
 	}
