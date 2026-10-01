@@ -50,7 +50,7 @@ public sealed class WorkQueueTests
 	public async Task FailedOperation_ReleasesQueueForFollowingWork ()
 		{
 		var error = new InvalidOperationException ("synthetic failure");
-		Assert.That (Assert.ThrowsAsync<InvalidOperationException> (async () => await TestSupport.Complete (_queue.EnqueueAsync (c => Task.FromException (error)))), Is.SameAs (error));
+		Assert.That (await Assert.ThrowsAsync<InvalidOperationException> (async () => await TestSupport.Complete (_queue.EnqueueAsync (c => Task.FromException (error)))), Is.SameAs (error));
 		bool ran = false;
 		await TestSupport.Complete (_queue.EnqueueAsync (c => { ran = true; return Task.CompletedTask; }));
 		Assert.That (ran, Is.True);

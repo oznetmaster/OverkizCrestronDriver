@@ -191,7 +191,7 @@ explicitly permitted, even where a fee is charged for that service.
 
 ## Automated tests
 
-The solution includes `OverkizCrestronDriver.Tests` (NUnit 4 with the Visual Studio NUnit adapter) and `OverkizCrestronDriver.ProcessorTests` (a standalone Crestron Home Utility test package). The 27 offline tests exercise driver logic without credentials or real device commands. The 30 processor lifecycle cases are excluded on Windows in this project; the dedicated desktop SDK harness exercises the same fixture sources.
+The solution includes `OverkizCrestronDriver.Tests` (NUnit 5 with the Visual Studio NUnit adapter) and `OverkizCrestronDriver.ProcessorTests` (a standalone Crestron Home Utility test package). The 27 offline tests exercise driver logic without credentials or real device commands. The 30 processor lifecycle cases are excluded on Windows in this project; the dedicated desktop SDK harness exercises the same fixture sources.
 
 ```powershell
 dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -c Release
@@ -235,7 +235,7 @@ Run `pwsh -File tools/Test-DriverVersioning.ps1` to check these rules with tempo
 See [versioning details](docs/Versioning.md) for build, release and installed-instance verification rules.
 ### Test package versions
 
-Ordinary tests use NUnit 4.6.1, NUnit3TestAdapter 6.3.0 and Microsoft.NET.Test.Sdk 18.10.1. The separate workflow project uses CrestronHomeNUnit.TestAdapter 1.12.1. These are stable development dependencies; NUnit 5 beta is not selected. The processor test project aligns its Crestron SDK reference with the production project at 29.0.10. Desktop test adapters and coverage tooling are excluded from the merged processor package.
+Ordinary tests use NUnit 5.0.0, NUnit3TestAdapter 6.3.0 and Microsoft.NET.Test.Sdk 18.10.1. The separate workflow project uses CrestronHomeNUnit.TestAdapter 2.2.0. These are stable development dependencies; the official NUnit 5.0.0 release is selected. The processor test project aligns its Crestron SDK reference with the production project at 29.0.10. Desktop test adapters and coverage tooling are excluded from the merged processor package.
 
 ### Desktop SDK dependency in CI
 
@@ -253,3 +253,6 @@ The solution includes [OverkizCrestronDriver.WorkflowTests](OverkizCrestronDrive
 The publish/release workflows support an explicit manual override when the processor or local self-hosted GitHub Actions runner is unavailable. Select `skip_hardware_checks` and provide a single-line `hardware_skip_reason`. Use the workflow's normal source and version controls. The override applies only to that invocation and is recorded with the exact source revision in its warning and job summary; it does not create a passing hardware-test result.
 
 GitHub-hosted validation remains mandatory for the checked-out source, and the normal build, tests and packaging steps still run. Wait for the configured hosted workflows to pass, or run them on the same source revision first. None of these hosted checks needs the local runner or processor. Automatic tag/release-triggered runs retain the normal hardware checks; use a manual invocation of the updated release workflow when an offline override is needed.
+## NUnit 5 test tooling
+
+All maintained NUnit suites use the official NUnit 5.0.0 framework. Async exception assertions are awaited, and discarded-task warnings fail test builds. Processor test packages use CrestronHomeNUnit SDK 2.2.0; workflow and Android suites, where provided, use the released 2.2.0 adapter. Tests remain available in Visual Studio, VS Code and the command line. Live and manual tests still require their documented devices and permissions. This is a test-tooling update; the published product version and runtime behavior are unchanged.
