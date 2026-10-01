@@ -1,5 +1,11 @@
 # OverkizCrestronDriver processor tests
 
+## NUnit 5 test package
+
+Test package **1.1.0** uses **NUnit 5.0.0**. It is independent of the product version. [Download package](https://github.com/oznetmaster/OverkizCrestronDriver/releases/download/v2.3.7/OverkizCrestronDriver.ProcessorTests-1.1.0.pkg), [documentation](https://github.com/oznetmaster/OverkizCrestronDriver/releases/download/v2.3.7/OverkizCrestronDriver.ProcessorTests-1.1.0-Documentation.zip), [validation](https://github.com/oznetmaster/OverkizCrestronDriver/releases/download/v2.3.7/OverkizCrestronDriver.ProcessorTests-1.1.0.validation.json), [exact source revisions](https://github.com/oznetmaster/OverkizCrestronDriver/releases/download/v2.3.7/OverkizCrestronDriver.ProcessorTests-1.1.0.sources.json), and [SHA-256 checksums](https://github.com/oznetmaster/OverkizCrestronDriver/releases/download/v2.3.7/OverkizCrestronDriver.ProcessorTests-1.1.0-SHA256SUMS.txt) are attached to the existing product release. No product binary or NuGet version changed for this test update.
+
+Validated on 1 October 2026: 27 offline cases passed in each of two runs from the packaged assembly on Windows. Processor-only lifecycle fixtures are skipped on Windows and are not included in that pass count. All suite identities were checked against source discovery. Live/manual tests and execution on the processor were not repeated during this migration; earlier hardware results do not certify this new package.
+
 This standalone Entity V2 **Utility** package runs the driver test assembly on Crestron Home's Mono runtime. It has its own identity and NUnit tile. The production driver can remain installed alongside it. The test package does not start or configure the production driver's installed instance.
 
 ## Build and deploy
