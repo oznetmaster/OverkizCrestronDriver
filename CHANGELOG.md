@@ -30,7 +30,7 @@ This is a compatible driver update; the client library's breaking API changes ar
 
 - Clearing or disposing the platform now removes child controllers and rejects stale work. Reconnect creates and disposes a separate HTTP client for each connection, avoiding attempts to change BaseAddress after requests have started.
 
-## [2.3.4.0] - 2026-09-12
+## 2.3.4.0 — 2026-09-12
 
 ### Changed
 
@@ -41,7 +41,7 @@ This is a compatible driver update; the client library's breaking API changes ar
 	 signatures and driver-facing behavior are unchanged for well-formed
 	 gateway/cloud responses.
 
-## [2.3.3.0] - 2026-06-18
+## 2.3.3.0 — 2026-06-18
 
 ### Fixed
 
@@ -49,7 +49,7 @@ This is a compatible driver update; the client library's breaking API changes ar
   immediately after controller registration, so they come online right away
   instead of requiring a driver reload.
 
-## [2.3.2.1] - 2026-06-18
+## 2.3.2.1 — 2026-06-18
 
 ### Fixed
 
@@ -57,13 +57,15 @@ This is a compatible driver update; the client library's breaking API changes ar
   in the correct order so they come online immediately after being added,
   instead of only appearing after a restart or reload.
 
-## [2.3.2.0] - 2026-06-12
+## 2.3.2.0 — 2026-06-12
 
 ### Changed
 
 - Updated the `OverkizClient` NuGet package dependency from 1.1.2 to 1.1.3.
 
-## [2.3.1.0] and earlier
+## Earlier releases
+
+Versions 2.3.1.0 and earlier.
 
 - See the [GitHub Releases](https://github.com/oznetmaster/OverkizCrestronDriver/releases)
   page for release notes prior to this changelog's introduction.
