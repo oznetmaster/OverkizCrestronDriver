@@ -37,6 +37,15 @@ internal static class TestSupport
 		Assert.That (await Task.WhenAny (task, Task.Delay (5000)), Is.SameAs (task), "Operation did not complete within five seconds.");
 		await task;
 		}
+	internal static async Task DisposeDriverAsync (OverkizPlatformDriver driver)
+		{
+		if (driver == null) return;
+		driver.Dispose ();
+		// Dispose schedules listener/client cleanup; join it before disposing its logger/transport.
+		var task = (Task)typeof (OverkizPlatformDriver).GetField ("_clientDisposalTask",
+			BindingFlags.Instance | BindingFlags.NonPublic).GetValue (driver);
+		await Complete (task);
+		}
 	internal static string DataDirectory
 		{
 		get

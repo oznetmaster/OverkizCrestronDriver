@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "publicVersion": "2.3.13",
+  "driverVersion": "2.3.013.0000",
+  "publicAssemblyName": "Shade_Overkiz_IP_V2",
+  "files": [
+    {
+      "name": "CrestronHomeDriver.Overkiz.Shades.2.3.13.nupkg",
+      "bytes": 520200,
+      "sha256": "5d3044eab8aca7947e5f7e10ca8589faacad9a1e5a48c7d119f010212ff16316"
+    },
+    {
+      "name": "Overkiz-2.3.13-Documentation.zip",
+      "bytes": 13301,
+      "sha256": "c48938b51e83bd993403d794dbb1dd48d1e07bce985285f0e38fd89d3550ebc3"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 305,
+      "sha256": "73755137bcd7381009ea85edce6bb9eca1032d605c3b4f551186b0b43fd8d53b"
+    },
+    {
+      "name": "Shade_Overkiz_IP_V2.pkg",
+      "bytes": 510523,
+      "sha256": "c6726f3eb935ffc089087471ddc00823b9d95c37c1dd086584b899b08c19d10d"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "name": "OverKizCrestronDriver/Definitions/DeviceUxCategory.cs",
+      "sha256": "9c58d175aa362396836b53e72466f41bd3de24dea4bfeba28ef7e56dd9648d38"
+    },
+    {
+      "name": "OverKizCrestronDriver/Definitions/PlatformManagedDevice.cs",
+      "sha256": "8cf3ac8a2df2c02a73794f1313536cd3ded308105ff8c77439ae090726b9ceb6"
+    },
+    {
+      "name": "OverKizCrestronDriver/IncludeInPkg/room/uidefinitions/UiDefinition.xml",
+      "sha256": "37e9b51990b70b525620e1253c36b593af0661420c2120ee29dcb68d9d411fb7"
+    },
+    {
+      "name": "OverKizCrestronDriver/IOverkizEntity.cs",
+      "sha256": "74af4dc1d8390034af608aa032ab8cd7e603be068a817e4c913d81ae791e6c66"
+    },
+    {
+      "name": "OverKizCrestronDriver/OverKizCrestronDriver.csproj",
+      "sha256": "e15ffc6f901b518b3eeb3a56014f60ac6b087bd372c565b0ba5d6fb3a55c7307"
+    },
+    {
+      "name": "OverKizCrestronDriver/OverkizDriverEntryPoint.cs",
+      "sha256": "92447793bdbbf791afbebc019beb10ba382a1d8836b619a4aafaf78480d11eac"
+    },
+    {
+      "name": "OverKizCrestronDriver/OverkizPlatformDriver.cs",
+      "sha256": "20153e67b97d96129239f5c6c629101cd84bede4aebfdbc66227a71aab1a4979"
+    },
+    {
+      "name": "OverKizCrestronDriver/OverkizRoomEntity.cs",
+      "sha256": "7042c07e2d867d286112b1da5257020bd08729a2b1d68f9939a334130bea79fd"
+    },
+    {
+      "name": "OverKizCrestronDriver/OverkizShadeEntity.cs",
+      "sha256": "7cc4b160098692a650191c24b5a4bebf6a29502caaaf3464e8e749c917c88981"
+    },
+    {
+      "name": "OverKizCrestronDriver/OverkizWorkQueue.cs",
+      "sha256": "03207aed051ef4a4b391288945bdb91a3dcf5f6da2425dfe588584eaf5dad5a8"
+    },
+    {
+      "name": "OverKizCrestronDriver/Shade_Overkiz_IP_V2.json",
+      "sha256": "12b5365801f538ed854098154d96653eee2cc7dc037b416294d3eb7efb43dcb4"
+    },
+    {
+      "name": "OverKizCrestronDriver/TestAssemblyAccess.cs",
+      "sha256": "df432ac4efe59d4106a3ffed5e8d69f68cc01dd1388cad32adae106666360698"
+    }
+  ],
+  "submittedArtifactSha256": "9620baa072d528c293bc8e9b673d212c6da386a25b7fc0e338771c05b0d520a5",
+  "relationship": "Same recovered product runtime sources; normal public assembly/resource naming, no submission help or paperwork. Public package is separately built and validated.",
+  "sourceHashNormalization": "UTF-8 without BOM; CRLF normalized to LF"
+}

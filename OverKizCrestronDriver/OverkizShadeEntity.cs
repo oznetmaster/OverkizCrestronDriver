@@ -103,8 +103,13 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		private set;
 		}
 
+	private bool _gatewayAvailable = true;
+	private bool _deviceAvailable = true;
+
 	public void SetOnline (bool online)
 		{
+		_gatewayAvailable = online;
+		online = online && (IsOneWay || _deviceAvailable);
 		Log ("SetOnline(" + online + ") called; current online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
 
 		bool changed = false;
@@ -149,7 +154,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		{
 		if (IsOneWay)
 			return;
-		SetOnline (available);
+		_deviceAvailable = available;
+		SetOnline (_gatewayAvailable);
 		}
 
 	/// <summary>

@@ -1,9 +1,9 @@
 # OverkizCrestronDriver
 
-For shipped changes, see the [changelog](CHANGELOG.md). Test, CI and build history is recorded separately in [development and validation history](DEVELOPMENT-HISTORY.md).
+For shipped changes, see the [changelog](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/CHANGELOG.md). Test, CI and build history is recorded separately in [development and validation history](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/DEVELOPMENT-HISTORY.md).
 
 
-See the [changelog](CHANGELOG.md) for release history and the [release notes](RELEASE-NOTES.md) for the current driver update. Driver releases are made for runtime fixes or dependency changes; adding tests alone does not require a driver release.
+See the [changelog](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/CHANGELOG.md) for release history and the [release notes](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/RELEASE-NOTES.md) for the current driver update. Driver releases are made for runtime fixes or dependency changes; adding tests alone does not require a driver release.
 
 A **Crestron Home** platform driver that integrates Overkiz-compatible smart-home gateways
 (Somfy TaHoma, Atlantic Cozytouch, Hitachi Hi Kumo, and others) as managed shade/blind devices,
@@ -11,11 +11,19 @@ supporting both cloud and local LAN connections.
 
 Crestron and Crestron Home are trademarks or registered trademarks of Crestron Electronics, Inc. This project is not affiliated with, endorsed by, or sponsored by Crestron Electronics, Inc.
 
-[![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-blue.svg)](LICENSE)
+[![License: MIT + Commons Clause](https://img.shields.io/badge/License-MIT%20%2B%20Commons%20Clause-blue.svg)](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/LICENSE)
 
-See [CHANGELOG.md](CHANGELOG.md) for release history, or the [GitHub Releases](https://github.com/oznetmaster/OverkizCrestronDriver/releases) page for downloadable assets.
+See [CHANGELOG.md](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/CHANGELOG.md) for release history, or the [GitHub Releases](https://github.com/oznetmaster/OverkizCrestronDriver/releases) page for downloadable assets.
 
 ---
+
+## Current release: 2.3.13
+
+This patch includes gateway availability and recovery fixes developed since public 2.3.7, uses public OverkizClient 2.1.2, and fixes clipped **My** labels in optional room groups. Existing driver identity, settings, child identities and shade commands are retained. Gateway availability is separate from measured blind position: one-way RTS devices still provide no physical position feedback.
+
+Use the [2.3.13 release](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.13) or [NuGet distribution](https://www.nuget.org/packages/CrestronHomeDriver.Overkiz.Shades/2.3.13). The normal public payload remains `Shade_Overkiz_IP_V2.pkg`, with manifest version `2.3.013.0000`. Import it and update the existing driver through Home Setup or Configure Pro; importing alone does not update the running instance. No routine removal and re-add is required.
+
+Crestron submission is a separate process. Its developer-qualified filenames, help PDF, signed checklist, evidence annex and correspondence are not the public GitHub/NuGet release bundle. Publishing this release does not establish Crestron catalog acceptance.
 
 ## Driver Architecture
 
@@ -177,7 +185,7 @@ Typical release flow:
 
 ## License
 
-MIT + Commons Clause © 2026 Neil Colvin — see [LICENSE](LICENSE).
+MIT + Commons Clause © 2026 Neil Colvin — see [LICENSE](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/LICENSE).
 
 Free to use and modify. You may not sell the Software as a standalone product or sublicense it.
 Commercial system integration work (e.g. a Crestron installer commissioning a customer system) is
@@ -197,7 +205,7 @@ The solution includes `OverkizCrestronDriver.Tests` (NUnit 5 with the Visual Stu
 dotnet test OverkizCrestronDriver.Tests/OverkizCrestronDriver.Tests.csproj -c Release
 ```
 
-Build the processor project in Debug in Visual Studio to build and deploy using private deployment settings. See [processor test instructions](OverkizCrestronDriver.ProcessorTests/README.md) for setup, suites, tile operation and UI separation. Processor packages are not published to NuGet. See [CHANGELOG](CHANGELOG.md) for changes.
+Build the processor project in Debug in Visual Studio to build and deploy using private deployment settings. See [processor test instructions](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/OverkizCrestronDriver.ProcessorTests/README.md) for setup, suites, tile operation and UI separation. Processor packages are not published to NuGet. See [CHANGELOG](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/CHANGELOG.md) for changes.
 
 
 ### Expanded driver behavior tests
@@ -219,7 +227,7 @@ Set `CompactJsonPath` in the desktop test project's private `DesktopTest.Local.p
 
 Desktop success does not establish Mono compatibility. Build the processor test project in Visual Studio, deploy it, and run the suites on the processor. The fixtures cover configuration, restoration, refresh/reconnect races and disposal using simulated responses. Installed-driver health remains a separate workflow check.
 
-For live tests, copy `OverkizCrestronDriver.Tests/LiveTestSettings.example.json` to a private `LiveTestSettings.json`. The desktop SDK harness reads it from `%LOCALAPPDATA%/OverkizClient` (shared with the client console), or from the NUnit `TestDataDirectory` parameter. Set `enabled` to `true` for local testing, or explicitly supply `EnableLiveTests=true`; `EnableLiveTests=false` always disables it. On the processor, upload the file through **Test inputs** and select **Live Gateway**. See the [processor test instructions](OverkizCrestronDriver.ProcessorTests/README.md). Private tokens and settings must never be committed or packaged.
+For live tests, copy `OverkizCrestronDriver.Tests/LiveTestSettings.example.json` to a private `LiveTestSettings.json`. The desktop SDK harness reads it from `%LOCALAPPDATA%/OverkizClient` (shared with the client console), or from the NUnit `TestDataDirectory` parameter. Set `enabled` to `true` for local testing, or explicitly supply `EnableLiveTests=true`; `EnableLiveTests=false` always disables it. On the processor, upload the file through **Test inputs** and select **Live Gateway**. See the [processor test instructions](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/OverkizCrestronDriver.ProcessorTests/README.md). Private tokens and settings must never be committed or packaged.
 
 
 ### Driver build and release versions
@@ -232,7 +240,7 @@ Deployment validation compares the exact built `.pkg` against the imported catal
 
 Run `pwsh -File tools/Test-DriverVersioning.ps1` to check these rules with temporary manifests; this does not change the working driver manifest or deploy anything.
 
-See [versioning details](docs/Versioning.md) for build, release and installed-instance verification rules.
+See [versioning details](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/docs/Versioning.md) for build, release and installed-instance verification rules.
 ### Test package versions
 
 Ordinary tests use NUnit 5.0.0, NUnit3TestAdapter 6.3.0 and Microsoft.NET.Test.Sdk 18.10.1. The separate workflow project uses CrestronHomeNUnit.TestAdapter 2.2.0. These are stable development dependencies; the official NUnit 5.0.0 release is selected. The processor test project aligns its Crestron SDK reference with the production project at 29.0.10. Desktop test adapters and coverage tooling are excluded from the merged processor package.
@@ -246,7 +254,7 @@ For automated local tests, processor tests and gated driver deployment, see the 
 
 ## Visual Studio processor workflow
 
-The solution includes [OverkizCrestronDriver.WorkflowTests](OverkizCrestronDriver.WorkflowTests/README.md), using the published Crestron Home Test Adapter. It exposes the complete gated workflow in Test Explorer while the ordinary NUnit fixtures remain available for local testing. Configure its private settings before execution; hosted CI verifies discovery without accessing hardware.
+The solution includes [OverkizCrestronDriver.WorkflowTests](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/OverkizCrestronDriver.WorkflowTests/README.md), using the published Crestron Home Test Adapter. It exposes the complete gated workflow in Test Explorer while the ordinary NUnit fixtures remain available for local testing. Configure its private settings before execution; hosted CI verifies discovery without accessing hardware.
 
 ## Publishing when local hardware is unavailable
 

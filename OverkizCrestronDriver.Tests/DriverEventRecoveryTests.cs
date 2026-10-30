@@ -90,6 +90,40 @@ public sealed class DriverEventRecoveryTests
 		Assert.That (_transport.UnregisterCount, Is.EqualTo (1));
 		}
 
+	[Test]
+	public async Task LocalLoop_QuotedExpiredListenerRecoversConfirmedTransportLoss ()
+		{
+		await _client.DisposeAsync ();
+		_client = new OverkizClient (string.Empty, string.Empty,
+			OverkizConst.LocalServer ("gateway.invalid"), "synthetic-local-token", _http);
+		Set ("_client", _client);
+		Field<OverkizWorkQueue> ("_workQueue").SetClient (_client);
+		Assert.That (await _client.Login (), Is.True);
+		_transport.QuotedListenerFirst = true;
+		_driver.RecordEventTransport (_client, new TaskCanceledException ("first confirmed transport failure"), CancellationToken.None);
+		_driver.RecordEventTransport (_client, new TaskCanceledException ("second confirmed transport failure"), CancellationToken.None);
+		Assert.That (Field<bool> ("_apiReachable"), Is.False);
+		var iterationCompleted = Signal ();
+		var originalDelay = _driver.EventDelay;
+		var normalDelays = 0;
+		_driver.EventDelay = (milliseconds, token) =>
+			{
+			if (milliseconds == 2000 && Interlocked.Increment (ref normalDelays) == 2)
+				iterationCompleted.TrySetResult (true);
+			return originalDelay (milliseconds, token);
+			};
+		Start ();
+		_poll.Release ();
+		await TestSupport.Complete (iterationCompleted.Task);
+		Assert.That (Field<bool> ("_apiReachable"), Is.True);
+		Assert.That (_driver.OnlineIndicatorIsOnline, Is.True);
+		Assert.That (_transport.RegisterCount, Is.EqualTo (2));
+		Assert.That (_transport.FetchCount, Is.EqualTo (2));
+		Assert.That (_transport.LoginCount, Is.Zero, "Local recovery does not submit cloud login.");
+		await Stop ();
+		Assert.That (_transport.UnregisterCount, Is.EqualTo (1));
+		}
+
 	[TestCase (false)]
 	[TestCase (true)]
 	public async Task EventLoop_RecoversRejectedListenerOrSession (bool authenticationRejected)
@@ -119,6 +153,47 @@ public sealed class DriverEventRecoveryTests
 		await Stop ();
 		Assert.That (_transport.FetchCount, Is.EqualTo (2));
 		Assert.That (_transport.RegisterCount, Is.EqualTo (1));
+		}
+
+	[TestCase (HttpStatusCode.BadRequest, false)]
+	[TestCase (HttpStatusCode.BadRequest, true)]
+	[TestCase ((HttpStatusCode)429, false)]
+	[TestCase ((HttpStatusCode)429, true)]
+	public async Task QuotaResponse_UsesExistingBackoffWithoutReauthentication (HttpStatusCode status, bool disposeDuringBackoff)
+		{
+		Assert.That (await _client.Login (), Is.True);
+		_transport.QuotaFirst = true;
+		_transport.QuotaStatus = status;
+		Start ();
+		_poll.Release ();
+		await TestSupport.Complete (_retry.Task);
+		Assert.That (_transport.FetchCount, Is.EqualTo (1), "No immediate library retry before the existing driver backoff.");
+		Assert.That (_transport.LoginCount, Is.EqualTo (1), "A quota response must not cause reauthentication.");
+		Assert.That (_transport.RegisterCount, Is.EqualTo (1));
+		if (!disposeDuringBackoff)
+			{
+			_poll.Release (2);
+			await TestSupport.Complete (_transport.Fetched.Task);
+			}
+		await Stop ();
+		Assert.That (_transport.FetchCount, Is.EqualTo (disposeDuringBackoff ? 1 : 2));
+		Assert.That (_transport.LoginCount, Is.EqualTo (1));
+		Assert.That (_transport.RegisterCount, Is.EqualTo (1));
+		Assert.That (_transport.UnregisterCount, Is.EqualTo (1));
+		}
+
+	[Test]
+	public async Task Disposal_DuringTimeoutBackoffStopsWithoutAnotherFetch ()
+		{
+		_transport.TimeoutFirst = true;
+		Start ();
+		_poll.Release ();
+		await TestSupport.Complete (_retry.Task);
+		await Stop ();
+		Assert.That (Field<Task> ("_eventLoopTask").IsCompleted, Is.True);
+		Assert.That (_transport.FetchCount, Is.EqualTo (1));
+		Assert.That (_transport.UnregisterCount, Is.EqualTo (1));
+		Assert.That (_transport.Disposed, Is.True);
 		}
 
 	[Test]
@@ -182,7 +257,8 @@ public sealed class DriverEventRecoveryTests
 	private sealed class EventTransport : HttpMessageHandler
 		{
 		internal int LoginCount, RegisterCount, FetchCount, UnregisterCount;
-		internal bool RejectFirst, RejectAuthentication, TimeoutFirst, HoldFetch, Disposed;
+		internal bool RejectFirst, RejectAuthentication, TimeoutFirst, HoldFetch, Disposed, QuotaFirst, QuotedListenerFirst;
+		internal HttpStatusCode QuotaStatus = HttpStatusCode.BadRequest;
 		internal readonly List<string> Unexpected = new ();
 		internal readonly TaskCompletionSource<bool> Entered = Signal (), Release = Signal (), Fetched = Signal (), SecondFetch = Signal ();
 		protected override async Task<HttpResponseMessage> SendAsync (HttpRequestMessage request, CancellationToken cancellationToken)
@@ -197,13 +273,15 @@ public sealed class DriverEventRecoveryTests
 				Entered.TrySetResult (true);
 				if (HoldFetch) await Release.Task;
 				if (RejectFirst && FetchCount == 1) return Reply (RejectAuthentication ? "{\"error\":\"Not authenticated\"}" : "{\"error\":\"Invalid event listener id listener1\"}", HttpStatusCode.BadRequest);
+				if (QuotedListenerFirst && FetchCount == 1) return Reply ("""{"errorCode":"UNSPECIFIED_ERROR","error":"\"No registered event listener.\""}""", HttpStatusCode.BadRequest);
+				if (QuotaFirst && FetchCount == 1) return Reply ("{\"error\":\"Too many requests, try again later\",\"errorCode\":\"AUTHENTICATION_ERROR\"}", QuotaStatus);
 				if (TimeoutFirst && FetchCount == 1) throw new OperationCanceledException ("synthetic timeout");
 				Fetched.TrySetResult (true);
 				if (FetchCount == 2) SecondFetch.TrySetResult (true);
 				return Reply ("[]");
 				}
 			if (path.EndsWith ("/unregister")) { UnregisterCount++; return Reply ("{}"); }
-			if (path.EndsWith ("/setup/devices")) return Reply ("[]");
+			if (path.EndsWith ("/setup/devices") || path.EndsWith ("/setup/gateways")) return Reply ("[]");
 			Unexpected.Add (path);
 			throw new InvalidOperationException ("Unexpected synthetic request: " + path);
 			}

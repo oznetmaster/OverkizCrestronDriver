@@ -71,3 +71,11 @@ Published processor test package on GitHub. This is a test-package release only;
 - Add 25 NUnit driver unit tests and a processor lifecycle suite in the existing solution.
 
 - Add a standalone Utility processor test package with private Debug deployment settings.
+
+## Overkiz public 2.3.13 recovery - 30 October 2026
+
+- Recovered the maintained product changes used by the separate 20 October Crestron submission. All nine runtime source files matched its frozen source inventory before preparation. The normal public build keeps the established Shade_Overkiz_IP_V2 assembly, embedded resource and package names; developer-qualified naming remains conditional on CrestronSubmission=true.
+- Compared all 596 product/entry-point method bodies in the new public DLL against the submitted 2.3.13 DLL after normalizing metadata references and branch targets: no differences or missing methods. The public package omits the submission help PDF and normalizes ZIP entry separators. It is a separately built public artifact, not byte-identical to the submission package.
+- Final desktop SDK gate: 122/122 non-live checks passed on .NET 10. Portable net472: 35 passed, 87 processor-only skips, no failures; five live checks discovered but not run. An initial portable run exposed a test-fixture teardown dereference after ignored setup. Fixed null-safe cleanup, standardized its skip reason and added class-level per-case lifecycle to survive processor merging; final portable and lifecycle gates passed. Runtime source was unchanged by that fixture correction.
+- Workflow discovery verified the single named workflow using released TestAdapter 3.0.0. The shared processor gate remains required before publication. No new motor operation, gateway interruption, full UI sweep or endurance trial is implied.
+- FrozenRelease.json identifies the normal public .pkg, its NuGet distribution, documentation ZIP and checksums. The prepared-release path validates exact source/draft identities, shared release checks and frozen payload integrity, then publishes those bytes without rebuilding. NuGet and standalone driver payloads must match. Submission forms, annexes, correspondence, original packages and private inputs are excluded.

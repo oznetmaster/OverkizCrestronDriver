@@ -46,12 +46,15 @@ public sealed class PlatformDiscoveryTests
 		Set ("_client", new OverkizClient ("test@example.invalid", "synthetic-password", new OverkizServer { Name = "Test", Endpoint = "https://gateway.invalid/api/", Manufacturer = "Test" }, "synthetic-token", _http));
 		}
 	[TearDown]
-	public void TearDown ()
+	public async Task TearDown ()
 		{
 		_transport?.Release.TrySetResult (true);
-		_driver?.Dispose ();
-		_http?.Dispose ();
-		_logger?.Dispose ();
+		try { await TestSupport.DisposeDriverAsync (_driver); }
+		finally
+			{
+			try { _http?.Dispose (); }
+			finally { _logger?.Dispose (); }
+			}
 		}
 	private void Set (string name, object value)
 		{

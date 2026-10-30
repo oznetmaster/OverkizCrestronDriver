@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "product": "Overkiz Gateway",
+  "driverId": "082ff239-52cf-416a-baca-cea449a9b08f",
+  "publicVersionFormat": "MAJOR.MINOR.PATCH",
+  "packageVersionFormat": "MAJOR.MINOR.PATCH.REVISION",
+  "distributions": [
+    {
+      "id": "public-2.3.7",
+      "channel": "public",
+      "publicVersion": "2.3.7",
+      "driverVersion": "2.3.007.0000",
+      "status": "released",
+      "date": "2026-09-28",
+      "packageSha256": "37252ff1aad17bc9692cc49d44392f3845ed99a3479aea7381b74e34f71eef89",
+      "url": "https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.7"
+    },
+    {
+      "id": "public-2.3.13",
+      "channel": "public",
+      "publicVersion": "2.3.13",
+      "driverVersion": "2.3.013.0000",
+      "status": "prepared",
+      "date": "2026-10-30",
+      "packageSha256": "c6726f3eb935ffc089087471ddc00823b9d95c37c1dd086584b899b08c19d10d",
+      "url": "https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.13",
+      "purpose": "Normal public package recovered from the submitted product source; normal public assembly/resource names and no submission PDF."
+    }
+  ],
+  "submissionArtifacts": [
+    {
+      "driverVersion": "2.3.013.0000",
+      "submittedUtc": "2026-10-20T08:00:37.9838555Z",
+      "packageName": "Shade_Overkiz_IP_V2_NeilColvin.pkg",
+      "packageSha256": "9620baa072d528c293bc8e9b673d212c6da386a25b7fc0e338771c05b0d520a5",
+      "status": "submitted; vendor publication response not recovered",
+      "relationship": "Separate submission artifact, preserved unchanged; same product runtime instructions, different assembly/resource names and included help. Not the public release payload."
+    }
+  ],
+  "historicalCandidates": "2.3.8 through 2.3.12 were unpublished submission-validation candidates. Their original packages and evidence remain retained separately; they were not GitHub/NuGet releases."
+}

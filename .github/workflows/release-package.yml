@@ -3,6 +3,15 @@ name: Release Package
 on:
   workflow_dispatch:
     inputs:
+      prepared_release:
+        description: Promote the frozen public artifacts without rebuilding
+        required: false
+        type: boolean
+        default: false
+      prepared_release_tag:
+        description: Exact immutable tag identifying FrozenRelease.json and its draft assets
+        required: false
+        type: string
       skip_desktop_checks:
         description: Reuse reviewed desktop results; package integrity checks still run
         required: false
@@ -44,7 +53,7 @@ concurrency:
 
 jobs:
   build-and-upload-package:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v')
+    if: inputs.prepared_release != true && !contains(github.event.release.body, '<!-- prepared-artifacts -->') && (github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'v'))
     runs-on: windows-latest
     env:
       MANIFESTUTIL_VERSION: 27.0.24
@@ -181,6 +190,8 @@ jobs:
             throw 'No .pkg file was generated in OverKizCrestronDriver/bin/Release.'
           }
 
+          & ./tools/Normalize-DriverPackage.ps1 -PackagePath $pkg.FullName
+          & ./tools/Assert-PublicDistributionVersion.ps1 -ReleaseVersion '${{ steps.package_version.outputs.value }}'
           & ./tools/Assert-DriverPackageVersion.ps1 -PackagePath $pkg.FullName -ManifestPath './OverKizCrestronDriver/Shade_Overkiz_IP_V2.json' -ReleaseVersion '${{ steps.package_version.outputs.value }}'
 
           "pkg_path=$($pkg.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
@@ -243,3 +254,64 @@ jobs:
           tag_name: ${{ github.event.release.tag_name || github.ref_name }}
           files: ${{ steps.package.outputs.pkg_path }}
           fail_on_unmatched_files: true
+  prepared-release:
+    if: github.event_name == 'workflow_dispatch' && inputs.prepared_release == true
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.prepared_release_tag }}
+      - name: Verify completed release validation
+        uses: oznetmaster/CrestronHomeNUnit/.github/actions/release-validation@2ae8197c6685099c2133e7bb962d1f3568aae9c3
+        with:
+          required-checks: ${{ vars.RELEASE_REQUIRED_CHECKS }}
+          hosted-workflows: '["tests.yml","workflow-discovery.yml"]'
+          skip-hardware-checks: ${{ inputs.skip_hardware_checks }}
+          hardware-skip-reason: ${{ inputs.hardware_skip_reason }}
+          skip-desktop-checks: ${{ inputs.skip_desktop_checks }}
+          desktop-skip-reason: ${{ inputs.desktop_skip_reason }}
+          validation-commit: ${{ inputs.validation_commit }}
+      - name: Verify the exact draft and frozen public payloads
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREPARED_TAG: ${{ inputs.prepared_release_tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $plan = Get-Content FrozenRelease.json -Raw | ConvertFrom-Json
+          if ($env:PREPARED_TAG -cne ('v' + $plan.publicVersion)) { throw 'Prepared tag mismatch.' }
+          $source = (git rev-parse HEAD).Trim()
+          $tagSource = (git rev-parse "$($env:PREPARED_TAG)^{commit}").Trim()
+          if ($LASTEXITCODE -or $source -cne $tagSource) { throw 'Immutable source mismatch.' }
+          $pages = gh api "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --paginate --slurp | ConvertFrom-Json
+          if ($LASTEXITCODE) { throw 'Cannot inspect draft releases.' }
+          $release = @($pages | ForEach-Object { $_ } | Where-Object tag_name -CEQ $env:PREPARED_TAG)
+          if ($release.Count -ne 1 -or !$release[0].draft -or $release[0].target_commitish -cne $source -or !$release[0].body.Contains('<!-- prepared-artifacts -->')) { throw 'Draft does not identify this frozen source.' }
+          $directory = Join-Path $PWD 'artifacts/frozen-release'
+          New-Item -ItemType Directory -Path $directory | Out-Null
+          gh release download $env:PREPARED_TAG --repo $env:GITHUB_REPOSITORY --dir $directory
+          if ($LASTEXITCODE) { throw 'Draft download failed.' }
+          ./tools/Test-FrozenRelease.ps1 -ArtifactDirectory $directory
+          if ($LASTEXITCODE) { throw 'Frozen integrity gate failed.' }
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.401
+      - name: Publish the frozen NuGet wrapper
+        shell: pwsh
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:NUGET_API_KEY)) { throw 'NuGet credential missing.' }
+          $plan = Get-Content FrozenRelease.json -Raw | ConvertFrom-Json
+          dotnet nuget push "artifacts/frozen-release/CrestronHomeDriver.Overkiz.Shades.$($plan.publicVersion).nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+          if ($LASTEXITCODE) { throw 'NuGet publication failed; inspect provenance before retrying.' }
+      - name: Publish the verified GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREPARED_TAG: ${{ inputs.prepared_release_tag }}
+        run: |
+          gh release edit $env:PREPARED_TAG --repo $env:GITHUB_REPOSITORY --draft=false --latest
+          if ($LASTEXITCODE) { throw 'GitHub publication failed; do not repeat the NuGet push.' }

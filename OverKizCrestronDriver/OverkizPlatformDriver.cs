@@ -605,6 +605,13 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 #endif
 				}
 			}
+		ReapplyGatewayConnectivity ();
+		}
+
+	private void ReapplyGatewayConnectivity ()
+		{
+		lock (_clientLock)
+			if (_client != null) PublishGatewayConnectivity (_client, CancellationToken.None);
 		}
 
 	private void PrepareForReconnect ()
@@ -692,6 +699,9 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				lock (_clientLock)
 					{
 					_client = newClient;
+					_gatewayAvailability.Clear ();
+					_apiReachable = true;
+					_transportFailures = 0;
 					_clientHttp = newHttp;
 					}
 				_workQueue.SetClient (newClient);
@@ -1520,6 +1530,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				Log ("RoomGroups not configured — no room entities will be created");
 				}
 
+			ReapplyGatewayConnectivity ();
 			Log ("Discovery complete");
 			}
 		}
@@ -1578,7 +1589,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			_eventCts?.Cancel ();
 			_eventCts?.Dispose ();
 			_eventCts = new CancellationTokenSource ();
-			CancellationToken token = _eventCts.Token;
+			var eventSource = _eventCts;
+			CancellationToken token = eventSource.Token;
 			var previousLoop = _eventLoopTask ?? Task.CompletedTask;
 			OverkizClient eventClient;
 			lock (_clientLock)
@@ -1586,18 +1598,30 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			_eventLoopTask = Task.Run (async () =>
 				{
 				await previousLoop.ConfigureAwait (false);
-				if (!token.IsCancellationRequested)
+				if (EnableEventConnectivity (eventSource))
+					{
 					await RunEventLoopAsync (eventClient, token).ConfigureAwait (false);
+					}
 				});
 			}
 
 		Log ("Event loop started");
 		}
 
+	internal bool EnableEventConnectivity (CancellationTokenSource source)
+		{
+		lock (_eventLock)
+			{
+			if (_disposed || !ReferenceEquals (source, _eventCts) || source.IsCancellationRequested) return false;
+			_connectivityStopped = false;
+			return true;
+			}
+		}
 	private void StopEventLoop ()
 		{
 		lock (_eventLock)
 			{
+			_connectivityStopped = true; // Serialized with enabling, before stopping children.
 			_eventCts?.Cancel ();
 			_eventCts?.Dispose ();
 			_eventCts = null;
@@ -1606,10 +1630,99 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		Log ("Event loop stopped");
 		}
 
+
+	// Local authenticated fetch success proves the direct gateway path; no Alive snapshot is needed.
+	// The cloud event loop owns/awaits snapshots in order. A cloud HTTP success
+	// establishes API reachability, not the physical gateway's Alive status.
+	private readonly Dictionary<string, bool> _gatewayAvailability = new (StringComparer.Ordinal);
+	private bool _apiReachable = true;
+	private int _transportFailures;
+	private volatile bool _connectivityStopped;
+
+	private bool CurrentEventClient (OverkizClient client, CancellationToken token) =>
+		!_disposed && !_connectivityStopped && !token.IsCancellationRequested && ReferenceEquals (client, _client);
+
+	internal bool RecordEventTransport (OverkizClient client, Exception failure, CancellationToken token)
+		{
+		lock (_clientLock)
+			{
+			if (!CurrentEventClient (client, token)) return false;
+			var wasReachable = _apiReachable;
+			if (failure == null) { _transportFailures = 0; _apiReachable = true; }
+			else
+				{
+				// HTTP/application errors (including auth/quota) are not evidence of a
+				// dead gateway. Count only timeouts or a nested network I/O failure.
+				var network = failure is OperationCanceledException;
+				if (failure is HttpRequestException)
+					for (var inner = failure.InnerException; inner != null; inner = inner.InnerException)
+						{
+						if (inner is System.Security.Authentication.AuthenticationException) { network = false; break; }
+						if (inner is System.Net.Sockets.SocketException || inner is System.IO.IOException) network = true;
+						}
+				_transportFailures = network ? _transportFailures + 1 : 0;
+				if (_transportFailures >= 2) _apiReachable = false;
+				}
+			if (wasReachable != _apiReachable) PublishGatewayConnectivity (client, token);
+			return !wasReachable && _apiReachable;
+			}
+		}
+
+	internal async Task RefreshGatewayAvailabilityAsync (OverkizClient client, IReadOnlyCollection<string> gatewayIds, CancellationToken token)
+		{
+		lock (_clientLock)
+			if (!CurrentEventClient (client, token) || client.ApiType == APIType.Local) return;
+		var gateways = await client.GetGateways ().ConfigureAwait (false);
+		lock (_clientLock)
+			{
+			if (!CurrentEventClient (client, token)) return;
+			var changed = false;
+			foreach (var group in gateways.Where (g => !string.IsNullOrEmpty (g.GatewayId)).GroupBy (g => g.GatewayId, StringComparer.Ordinal))
+				{
+				// Missing/null/ambiguous states preserve prior knowledge; no synthetic true.
+				if (group.Count () != 1 || (gatewayIds != null && !gatewayIds.Contains (group.Key))) continue;
+				var alive = group.Single ().Alive;
+				if (alive.HasValue && (!_gatewayAvailability.TryGetValue (group.Key, out var old) || old != alive.Value))
+					{ _gatewayAvailability[group.Key] = alive.Value; changed = true; }
+				}
+			if (changed) PublishGatewayConnectivity (client, token);
+			}
+		}
+
+	private bool GatewayAvailableFor (OverkizClient client, string deviceUrl)
+		{
+		// The immutable client mode, not mutable installer settings, owns this result.
+		if (client.ApiType == APIType.Local) return true;
+		var gatewayId = new Device { DeviceUrl = deviceUrl }.GatewayId;
+		return gatewayId == null || !_gatewayAvailability.TryGetValue (gatewayId, out var alive) || alive;
+		}
+
+	// Caller holds _clientLock. Entity/device availability is retained independently.
+	private void PublishGatewayConnectivity (OverkizClient expectedClient, CancellationToken token)
+		{
+		lock (_entitiesLock)
+			{
+			// Stop/cancel can occur while this publisher waits for the entity lock.
+			if (!CurrentEventClient (expectedClient, token)) return;
+			SetOnline (_apiReachable && _entities.Keys.All (url => GatewayAvailableFor (expectedClient, url)));
+			foreach (var pair in _entities) pair.Value.SetOnline (_apiReachable && GatewayAvailableFor (expectedClient, pair.Key));
+			foreach (var pair in _roomEntities)
+				{
+				var members = _roomToShades.TryGetValue (pair.Key, out var urls) ? urls : new List<string> ();
+				// A room's controls promise all its mapped members, not merely one gateway.
+				pair.Value.SetOnline (_apiReachable && members.All (url =>
+					_entities.TryGetValue (url, out var entity) && entity is OverkizShadeEntity shade && shade.OnlineIndicatorIsOnline));
+				}
+			}
+		}
+
 	private async Task RunEventLoopAsync (OverkizClient eventClient, CancellationToken ct)
 		{
 		const int POLL_INTERVAL_MS = 2_000;
 		const int RETRY_DELAY_MS = 10_000;
+		var initialGatewaySnapshot = true;
+		string observedListener = null;
+		var pendingGateways = new HashSet<string> (StringComparer.Ordinal);
 
 		if (eventClient == null)
 			return;
@@ -1628,12 +1741,28 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					IReadOnlyList<OverKizApi.Models.EventObject> events =
 						await eventClient.FetchEvents (autoRegister: true).ConfigureAwait (false);
 
+					if (RecordEventTransport (eventClient, null, ct)) initialGatewaySnapshot = true;
+					if (!string.Equals (observedListener, eventClient.EventListenerId, StringComparison.Ordinal))
+						{ initialGatewaySnapshot = true; observedListener = eventClient.EventListenerId; }
+
 					foreach (OverKizApi.Models.EventObject ev in events)
 						{
 						if (ct.IsCancellationRequested)
 							break;
 
-						DispatchEvent (ev);
+						lock (_clientLock)
+							{
+							if (!CurrentEventClient (eventClient, ct)) return;
+							if (eventClient.ApiType != APIType.Local && (ev.Name == "GatewayAliveChanged" || ev.Name == "GatewayAliveChangedEvent") && !string.IsNullOrEmpty (ev.GatewayId))
+								pendingGateways.Add (ev.GatewayId);
+							DispatchEvent (ev);
+							}
+						}
+					if (eventClient.ApiType != APIType.Local && (initialGatewaySnapshot || pendingGateways.Count > 0))
+						{
+						await RefreshGatewayAvailabilityAsync (eventClient, initialGatewaySnapshot ? null : pendingGateways, ct).ConfigureAwait (false);
+						initialGatewaySnapshot = false;
+						pendingGateways.Clear ();
 						}
 					}
 				catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -1642,6 +1771,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					}
 				catch (Exception ex)
 					{
+					RecordEventTransport (eventClient, ex, ct);
 					LogWarning ("Event loop: fetch error – " + ex.Message + "; retrying in " + RETRY_DELAY_MS + "ms");
 
 					try
@@ -1778,7 +1908,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			}
 
 		Log ("Event: DeviceAvailabilityChanged " + ev.DeviceUrl + " available=" + available);
-		entity.UpdateAvailability (available);
+		lock (_clientLock)
+			{
+			entity.UpdateAvailability (available);
+			PublishGatewayConnectivity (_client, CancellationToken.None);
+			}
 		}
 
 	private async Task HandleDeviceCreatedAsync (OverKizApi.Models.EventObject ev)
@@ -1906,6 +2040,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			if (newRoomEntity != null)
 				Log ("Event: DeviceCreated - room entity started controllerId=" + newRoomEntity.ControllerId + " online=" + newRoomEntity.OnlineIndicatorIsOnline + " ready=" + newRoomEntity.ReadyIndicatorIsReady);
 
+			ReapplyGatewayConnectivity ();
 			Log ("Event: DeviceCreated – added child " + label + " (id=" + entity.ControllerId + ")");
 			}
 		catch (Exception ex)
@@ -2001,6 +2136,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
 
 		Log ("Event: DeviceDeleted – removed child (id=" + entity.ControllerId + ", url=" + ev.DeviceUrl + ")");
+		ReapplyGatewayConnectivity ();
 		}
 
 	private void HandleDeviceUpdated (OverKizApi.Models.EventObject ev)
@@ -2105,6 +2241,7 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 		ManagedDevices = managedDevicesCopy;
 		NotifyPropertyChanged ("platform:managedDevices", CreateValueForEntries (ManagedDevices));
+		ReapplyGatewayConnectivity ();
 		}
 
 	// ── Private: entity factory ──────────────────────────────────────────────

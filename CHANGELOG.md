@@ -8,6 +8,16 @@ scheme described in [README.md](README.md#building-from-source).
 
 This changelog records shipped features, fixes, compatibility and runtime dependency changes. See [development and validation history](DEVELOPMENT-HISTORY.md) for tests, CI, build tooling and work not yet released.
 
+## [2.3.13](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.13) - 2026-10-30
+
+- Propagate confirmed gateway or API-path loss to dependent shade and room availability, including one-way RTS devices. Preserve separate two-way device availability and reject stale work after connection replacement or disposal.
+- Determine local-mode reachability through authenticated direct communication; retain explicit per-gateway availability for cloud mode. Automatically restore availability after communication recovers.
+- Use OverkizClient 2.1.2 for stale-listener recovery after a gateway restart and correct cloud quota-error classification, without introducing automatic shade-command retries.
+- Keep optional room and slot **My** button labels legible on narrow phone layouts by removing competing icons.
+- Preserve existing configuration, child identities, shade commands, polling/backoff policy and public package naming. One-way shades still provide no measured physical position feedback.
+
+Versions 2.3.8 through 2.3.12 were unpublished submission-validation candidates. Their useful changes are included here; historical test results retain their actual version attribution. The separate 2.3.13 Crestron submission artifact remains unchanged.
+
 ## [2.3.7](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.7) — 2026-09-28
 
 - Update OverkizClient to 2.1.0 and recover rejected or missing event listeners without duplicate registration after login.

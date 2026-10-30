@@ -10,7 +10,10 @@
 	<TargetFramework>net472</TargetFramework>
 	<OutputType>Library</OutputType>
 	<AssemblyName>Shade_Overkiz_IP_V2</AssemblyName>
+	<AssemblyName Condition="'$(CrestronSubmission)' == 'true' And '$(BuildForTests)' != 'true'">Shade_Overkiz_IP_V2_NeilColvin</AssemblyName>
 	<RootNamespace>OverKiz.CrestronDriver</RootNamespace>
+	<!-- Keep historical generated sources excluded when a private candidate chooses external intermediates. -->
+	<DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
 	<LangVersion>latest</LangVersion>
 	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	<NoWarn>$(NoWarn);ILLink1005</NoWarn>
@@ -23,6 +26,7 @@
 	<Company>Neil Colvin</Company>
 	<Description>Crestron Home platform driver for Overkiz-compatible gateways that exposes managed shade and blind devices with cloud and local LAN connection support.</Description>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
+	<PackageReleaseNotes>Fix gateway availability and automatic recovery; use OverkizClient 2.1.2; keep aggregate My labels readable. Existing configuration and public package naming are preserved.</PackageReleaseNotes>
 	<PackageLicenseFile>LICENSE</PackageLicenseFile>
 	<RepositoryUrl>https://github.com/oznetmaster/OverkizCrestronDriver</RepositoryUrl>
 	<RepositoryType>git</RepositoryType>
@@ -34,12 +38,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="OverkizClient" Version="2.1.0" />
+	<PackageReference Include="OverkizClient" Version="2.1.2" />
 	<PackageReference Include="Crestron.DeviceDrivers.DevKit" Version="29.0.10" />
   </ItemGroup>
 
   <ItemGroup>
-	<EmbeddedResource Include="Shade_Overkiz_IP_V2.json" />
+	<EmbeddedResource Include="Shade_Overkiz_IP_V2.json" LogicalName="$(RootNamespace).$(AssemblyName).json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -70,6 +74,12 @@
 	<PackageDriverIgnoreExitCode Condition="'$(PackageDriverIgnoreExitCode)' == ''">true</PackageDriverIgnoreExitCode>
 	<SkipDriverVersionBump Condition="'$(SkipDriverVersionBump)' == ''">false</SkipDriverVersionBump>
   </PropertyGroup>
+
+  <Import Project="$(SubmissionToolsDirectory)\CrestronSubmissionHelp.targets" Condition="'$(CrestronSubmission)' == 'true' And Exists('$(SubmissionToolsDirectory)\CrestronSubmissionHelp.targets')" />
+  <Target Name="ValidateSubmissionHelpImport" BeforeTargets="BumpDriverVersion;CoreCompile" Condition="'$(CrestronSubmission)' == 'true' And '$(BuildForTests)' != 'true' And '$(DesignTimeBuild)' != 'true'">
+	<Error Condition="'$(SubmissionHelpTargetsImported)' != 'true'" Text="Select the complete public submission help targets before preparing a candidate." />
+	<CallTarget Targets="ValidateSubmissionHelpSettings" />
+  </Target>
 
   <!-- BumpDriverVersion: increments the 4th component of DriverVersion on every Debug build -->
 	<Target Name="BumpDriverVersion" BeforeTargets="BeforeBuild" Condition="'$(BuildForTests)' != 'true' And '$(SkipDriverVersionBump)' != 'true' And '$(DesignTimeBuild)' != 'true'">
@@ -115,7 +125,9 @@
 	  <IncludeInPkgFiles Include="$(MSBuildProjectDirectory)\IncludeInPkg\**\*" Exclude="$(MSBuildProjectDirectory)\IncludeInPkg\**\*.xsd" />
 	</ItemGroup>
 	<Copy SourceFiles="@(IncludeInPkgFiles)" DestinationFiles="@(IncludeInPkgFiles->'$(TargetDir)patched\IncludeInPkg\%(RecursiveDir)%(Filename)%(Extension)')" />
+	<CallTarget Targets="StageSubmissionHelp" Condition="'$(CrestronSubmission)' == 'true'" />
 	<Exec Command="&quot;$(ManifestUtilExe)&quot; --file &quot;$(TargetDir)patched\$(AssemblyName).dll&quot; --lib &quot;$(TargetDir.TrimEnd('\'))&quot; --output &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="$(PackageDriverContinueOnError)" IgnoreExitCode="$(PackageDriverIgnoreExitCode)" />
+	<CallTarget Targets="VerifySubmissionHelp" Condition="'$(CrestronSubmission)' == 'true'" />
   </Target>
 
   <Target Name="ValidateNuGetPkgInput" BeforeTargets="GenerateNuspec" Condition="'$(IsPacking)' == 'true'">
