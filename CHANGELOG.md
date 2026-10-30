@@ -8,7 +8,7 @@ scheme described in [README.md](README.md#building-from-source).
 
 This changelog records shipped features, fixes, compatibility and runtime dependency changes. See [development and validation history](DEVELOPMENT-HISTORY.md) for tests, CI, build tooling and work not yet released.
 
-## 2.3.7 — 2026-09-28
+## [2.3.7](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.7) — 2026-09-28
 
 - Update OverkizClient to 2.1.0 and recover rejected or missing event listeners without duplicate registration after login.
 - Keep event monitoring running after a request timeout.
@@ -16,7 +16,7 @@ This changelog records shipped features, fixes, compatibility and runtime depend
 
 Existing configuration fields, device identities and shade controls are unchanged. See [release notes](RELEASE-NOTES.md).
 
-## 2.3.6 — 2026-09-22
+## [2.3.6](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.6) — 2026-09-22
 
 - Update OverkizClient to 2.0.0 and Crestron.DeviceDrivers.DevKit to 29.0.10, retaining the existing driver configuration fields, device identities and controls.
 - Remove unused log4net, Polly and related merge dependencies.
@@ -24,13 +24,13 @@ Existing configuration fields, device identities and shade controls are unchange
 
 This is a compatible driver update; the client library's breaking API changes are handled internally. See [release notes](RELEASE-NOTES.md).
 
-## 2.3.5 — 2026-09-14
+## [2.3.5](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.5) — 2026-09-14
 
 [Driver release notes](RELEASE-NOTES.md). Test-only changes do not require a driver release.
 
 - Clearing or disposing the platform now removes child controllers and rejects stale work. Reconnect creates and disposes a separate HTTP client for each connection, avoiding attempts to change BaseAddress after requests have started.
 
-## 2.3.4.0 — 2026-09-12
+## [2.3.4.0](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.4.0) — 2026-09-12
 
 ### Changed
 
@@ -41,7 +41,7 @@ This is a compatible driver update; the client library's breaking API changes ar
 	 signatures and driver-facing behavior are unchanged for well-formed
 	 gateway/cloud responses.
 
-## 2.3.3.0 — 2026-06-18
+## [2.3.3.0](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.3.0) — 2026-06-18
 
 ### Fixed
 
@@ -57,7 +57,7 @@ This is a compatible driver update; the client library's breaking API changes ar
   in the correct order so they come online immediately after being added,
   instead of only appearing after a restart or reload.
 
-## 2.3.2.0 — 2026-06-12
+## [2.3.2.0](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.2.0) — 2026-06-12
 
 ### Changed
 
