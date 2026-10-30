@@ -20,11 +20,14 @@
       "channel": "public",
       "publicVersion": "2.3.13",
       "driverVersion": "2.3.013.0000",
-      "status": "prepared",
+      "status": "released",
       "date": "2026-10-30",
       "packageSha256": "c6726f3eb935ffc089087471ddc00823b9d95c37c1dd086584b899b08c19d10d",
       "url": "https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.13",
-      "purpose": "Normal public package recovered from the submitted product source; normal public assembly/resource names and no submission PDF."
+      "purpose": "Normal public package recovered from the submitted product source; normal public assembly/resource names and no submission PDF.",
+      "releasedUtc": "2026-10-30T17:53:57Z",
+      "sourceCommit": "0db1987dc60c77deaa76344fc23ce7e8ca8a9a0f",
+      "nugetUrl": "https://www.nuget.org/packages/CrestronHomeDriver.Overkiz.Shades/2.3.13"
     }
   ],
   "submissionArtifacts": [
