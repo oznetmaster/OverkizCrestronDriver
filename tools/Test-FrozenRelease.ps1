@@ -50,7 +50,7 @@ try {
     if ($manifest.packageId -cne 'CrestronHomeDriver.Overkiz.Shades' -or $manifest.packageVersion -cne $plan.publicVersion -or $manifest.payloadFile -cne $pkgName -or $manifest.packageType -cne 'CrestronHomeDriver' -or $manifest.containsManagedDllPayload -ne $false) { throw 'Invalid distribution manifest.' }
     $reader = [IO.StreamReader]::new($zip.GetEntry('README.md').Open())
     try { $readme = $reader.ReadToEnd() } finally { $reader.Dispose() }
-    if ($readme -cne [IO.File]::ReadAllText("$PSScriptRoot/../README.md")) { throw 'Packaged README differs from source.' }
+    if ($readme.Replace("`r`n", "`n") -cne [IO.File]::ReadAllText("$PSScriptRoot/../README.md").Replace("`r`n", "`n")) { throw 'Packaged README differs from source.' }
     if ($readme -match '\]\((?!https?://|#)[^)]+\)') { throw 'Relative link in NuGet README.' }
     if (@($zip.Entries | Where-Object FullName -Match '(?i)(LiveTestSettings|\.local\.|\.csproj.user|\.pfx$|signed\.pdf|Evidence-Annex|email-preview|\.dll$)').Count) { throw 'Private, submission-only or DLL payload in distribution wrapper.' }
 } finally { $zip.Dispose() }
