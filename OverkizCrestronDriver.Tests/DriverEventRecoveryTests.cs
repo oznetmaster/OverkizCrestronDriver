@@ -155,10 +155,11 @@ public sealed class DriverEventRecoveryTests
 		Assert.That (_transport.RegisterCount, Is.EqualTo (1));
 		}
 
-	[TestCase (HttpStatusCode.BadRequest, false)]
-	[TestCase (HttpStatusCode.BadRequest, true)]
-	[TestCase ((HttpStatusCode)429, false)]
-	[TestCase ((HttpStatusCode)429, true)]
+	// HTTP 429 has an enum name on .NET 10 but not .NET Framework. Keep discovery identities stable across both.
+	[TestCase (HttpStatusCode.BadRequest, false, TestName = "{m}(HTTP400,Retry)")]
+	[TestCase (HttpStatusCode.BadRequest, true, TestName = "{m}(HTTP400,Dispose)")]
+	[TestCase ((HttpStatusCode)429, false, TestName = "{m}(HTTP429,Retry)")]
+	[TestCase ((HttpStatusCode)429, true, TestName = "{m}(HTTP429,Dispose)")]
 	public async Task QuotaResponse_UsesExistingBackoffWithoutReauthentication (HttpStatusCode status, bool disposeDuringBackoff)
 		{
 		Assert.That (await _client.Login (), Is.True);
