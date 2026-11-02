@@ -10,6 +10,12 @@ See the [product changelog](CHANGELOG.md) for shipped changes. This document pre
 - Test-only or documentation-only changes do not require a product release. Processor-test releases update this history, not the product changelog.
 
 <!-- development-history -->
+## Pending client dependency update — 2026-11-02
+
+Reference OverkizClient 2.1.3 in the production driver and desktop lifecycle harness for the next driver release. That client patch names the existing numeric execution failure code 60001 as `FailureType.Internal`, preserving the raw failure text and all existing enum values. This driver handles terminal executions through `NewState` and does not inspect `FailureTypeCode`, so the correction does not change shade commands or event handling. No immediate driver release is required. The driver version, manifest, UI and previously published packages remain unchanged.
+
+Validation against the verified public GitHub client package, using an isolated restore cache, passes 35 portable net472 cases with 87 expected processor-only skips and all 122 cases in the desktop SDK lifecycle harness. Five live gateway tests were discovered but not executed. Discovery and execution identities match on each target.
+
 ## 2.3.7 event recovery and validation — 2026-09-28
 
 - Reference the published OverkizClient 2.1.0 package in production and desktop lifecycle projects.
