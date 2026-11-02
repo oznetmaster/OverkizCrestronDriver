@@ -50,3 +50,7 @@ Desktop.ini
 
 # Visual Studio project backup files
 *.Backup.tmp
+
+# Shared Cake build downloads and invocation receipts
+/artifacts/build-components/
+/artifacts/build-automation/
