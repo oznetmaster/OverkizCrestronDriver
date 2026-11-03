@@ -237,6 +237,13 @@ jobs:
 
           "nupkg_path=$($nupkg.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
+      - name: Verify public driver artifact contents
+        shell: pwsh
+        env:
+          PUBLIC_ARTIFACT_0: ${{ steps.package.outputs.pkg_path }}
+          PUBLIC_ARTIFACT_1: ${{ steps.nuget_package.outputs.nupkg_path }}
+        run: |
+          ./tools/Assert-PublicDriverArtifacts.ps1 -Path @($env:PUBLIC_ARTIFACT_0, $env:PUBLIC_ARTIFACT_1)
       - name: Publish NuGet package
         shell: pwsh
         env:
@@ -297,6 +304,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.401
+      - name: Verify public driver artifact contents
+        shell: pwsh
+        run: |
+          ./tools/Assert-PublicDriverArtifacts.ps1 -Path @("artifacts/frozen-release")
       - name: Publish the frozen NuGet wrapper
         shell: pwsh
         env:
