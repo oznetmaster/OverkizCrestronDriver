@@ -1,5 +1,20 @@
 # OverkizCrestronDriver
 
+## Crestron availability
+
+**Published by Crestron:** Overkiz **2.3.13** was added to the Crestron production driver database on **4 November 2026** (catalog version `2.3.013.0000`).
+
+Find the driver on the [Crestron driver site](https://drivers.crestron.io/) or in the **Crestron Home driver catalog**, using the following entry:
+
+| Field | Catalog entry |
+|---|---|
+| Developer | Neil Colvin |
+| Device type | Platform |
+| Manufacturer | Overkiz |
+| Model | Overkiz Gateway |
+
+Crestron catalog and GitHub/NuGet versions may differ; check the version offered by your chosen installation source.
+
 For shipped changes, see the [changelog](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/CHANGELOG.md). Test, CI and build history is recorded separately in [development and validation history](https://github.com/oznetmaster/OverkizCrestronDriver/blob/master/DEVELOPMENT-HISTORY.md).
 
 
@@ -23,7 +38,7 @@ This patch includes gateway availability and recovery fixes developed since publ
 
 Use the [2.3.13 release](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.13) or [NuGet distribution](https://www.nuget.org/packages/CrestronHomeDriver.Overkiz.Shades/2.3.13). The normal public payload remains `Shade_Overkiz_IP_V2.pkg`, with manifest version `2.3.013.0000`. Import it and update the existing driver through Home Setup or Configure Pro; importing alone does not update the running instance. No routine removal and re-add is required.
 
-Crestron submission is a separate process. Its developer-qualified filenames, help PDF, signed checklist, evidence annex and correspondence are not the public GitHub/NuGet release bundle. Publishing this release does not establish Crestron catalog acceptance.
+Crestron has published version 2.3.13 as **Overkiz Gateway**. Its submission package is named `Shade_Overkiz_IP_V2_NeilColvin.pkg`; the public GitHub/NuGet package remains `Shade_Overkiz_IP_V2.pkg`. The submission-specific help PDF, signed checklist, evidence annex and correspondence are separate from the public release bundle.
 
 ## Driver Architecture
 
@@ -67,7 +82,9 @@ Compatibility note: the driver is intended for Overkiz-compatible gateways, but 
 
 ## Installation
 
-The best way to download and install this driver on a Crestron Home system is to use the [Crestron Home Driver Feed Installer](https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer) repository and application.
+Install the Crestron-published version through the **Crestron Home driver catalog**, looking for **Overkiz Gateway** under **Overkiz** (developer **Neil Colvin**, device type **Platform**). The driver is also listed on the [Crestron driver site](https://drivers.crestron.io/).
+
+For the GitHub/NuGet distribution, use the [Crestron Home Driver Feed Installer](https://github.com/oznetmaster/Crestron-Home-Driver-Feed-Installer) repository and application.
 
 If you prefer to install manually, use the attached `Shade_Overkiz_IP_V2.pkg` asset from the relevant GitHub Release. The automatic GitHub `Source code (zip)` and `Source code (tar.gz)` assets are repository snapshots, not installable Crestron driver packages.
 
