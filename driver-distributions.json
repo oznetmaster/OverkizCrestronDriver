@@ -28,6 +28,15 @@
       "releasedUtc": "2026-10-30T17:53:57Z",
       "sourceCommit": "0db1987dc60c77deaa76344fc23ce7e8ca8a9a0f",
       "nugetUrl": "https://www.nuget.org/packages/CrestronHomeDriver.Overkiz.Shades/2.3.13"
+    },
+    {
+      "id": "public-2.3.14",
+      "channel": "public",
+      "publicVersion": "2.3.14",
+      "driverVersion": "2.3.014.0000",
+      "status": "prepared",
+      "purpose": "Audited dependency and driver lifecycle patch",
+      "url": "https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.14"
     }
   ],
   "submissionArtifacts": [

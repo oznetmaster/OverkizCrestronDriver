@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "name": "OverkizCrestronDriver",
+  "versionFile": "build/ReleaseVersion.props",
+  "versionXPath": "/Project/PropertyGroup/Version",
+  "notesFile": "release-notes/v{version}.md",
+  "packages": [
+    {
+      "frameworks": [],
+      "project": "OverKizCrestronDriver/OverKizCrestronDriver.csproj",
+      "id": "CrestronHomeDriver.Overkiz.Shades",
+      "symbols": false
+    }
+  ],
+  "applications": [],
+  "documents": [
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "rawLibraries": false,
+  "libraryArchive": false
+}

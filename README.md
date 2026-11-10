@@ -1,5 +1,9 @@
 # OverkizCrestronDriver
 
+## Current GitHub/NuGet release: 2.3.14
+
+[Download 2.3.14](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.14) or use the matching NuGet driver distribution. This patch includes the audited dependency and lifecycle corrections; see [release notes](RELEASE-NOTES.md). Existing configuration and pairing formats are retained. Crestron catalog/submission versions below retain their separate attribution.
+
 ## Crestron availability
 
 **Published by Crestron:** Overkiz **2.3.13** was added to the Crestron production driver database on **4 November 2026** (catalog version `2.3.013.0000`).
@@ -32,11 +36,11 @@ See [CHANGELOG.md](https://github.com/oznetmaster/OverkizCrestronDriver/blob/mas
 
 ---
 
-## Current release: 2.3.13
+## Current public release: 2.3.14
 
 This patch includes gateway availability and recovery fixes developed since public 2.3.7, uses public OverkizClient 2.1.2, and fixes clipped **My** labels in optional room groups. Existing driver identity, settings, child identities and shade commands are retained. Gateway availability is separate from measured blind position: one-way RTS devices still provide no physical position feedback.
 
-Use the [2.3.13 release](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.13) or [NuGet distribution](https://www.nuget.org/packages/CrestronHomeDriver.Overkiz.Shades/2.3.13). The normal public payload remains `Shade_Overkiz_IP_V2.pkg`, with manifest version `2.3.013.0000`. Import it and update the existing driver through Home Setup or Configure Pro; importing alone does not update the running instance. No routine removal and re-add is required.
+Use the [2.3.14 release](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.14) or [NuGet distribution](https://www.nuget.org/packages/CrestronHomeDriver.Overkiz.Shades/2.3.14). The normal public payload remains `Shade_Overkiz_IP_V2.pkg`, with manifest version `2.3.014.0000`. Import it and update the existing driver through Home Setup or Configure Pro; importing alone does not update the running instance. No routine removal and re-add is required.
 
 Crestron has published version 2.3.13 as **Overkiz Gateway**. Its submission package is named `Shade_Overkiz_IP_V2_NeilColvin.pkg`; the public GitHub/NuGet package remains `Shade_Overkiz_IP_V2.pkg`. The submission-specific help PDF, signed checklist, evidence annex and correspondence are separate from the public release bundle.
 

@@ -215,203 +215,353 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 
 	[EntityProperty (Id = "openPercent_0", FriendlyName = "Open % 1", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_0 { get; private set; }
+	public int OpenPercent_0
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_0", FriendlyName = "Shade Label 1")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_0 { get; private set; }
+	public string ShadeLabel_0
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_0", FriendlyName = "Visible 1")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_0 { get; private set; }
+	public bool Visible_0
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_0", FriendlyName = "Visible Slider 1")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_0 { get; private set; }
+	public bool VisibleSlider_0
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_0", FriendlyName = "Visible My 1")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_0 { get; private set; }
+	public bool VisibleMy_0
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_1", FriendlyName = "Open % 2", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_1 { get; private set; }
+	public int OpenPercent_1
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_1", FriendlyName = "Shade Label 2")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_1 { get; private set; }
+	public string ShadeLabel_1
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_1", FriendlyName = "Visible 2")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_1 { get; private set; }
+	public bool Visible_1
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_1", FriendlyName = "Visible Slider 2")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_1 { get; private set; }
+	public bool VisibleSlider_1
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_1", FriendlyName = "Visible My 2")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_1 { get; private set; }
+	public bool VisibleMy_1
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_2", FriendlyName = "Open % 3", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_2 { get; private set; }
+	public int OpenPercent_2
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_2", FriendlyName = "Shade Label 3")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_2 { get; private set; }
+	public string ShadeLabel_2
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_2", FriendlyName = "Visible 3")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_2 { get; private set; }
+	public bool Visible_2
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_2", FriendlyName = "Visible Slider 3")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_2 { get; private set; }
+	public bool VisibleSlider_2
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_2", FriendlyName = "Visible My 3")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_2 { get; private set; }
+	public bool VisibleMy_2
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_3", FriendlyName = "Open % 4", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_3 { get; private set; }
+	public int OpenPercent_3
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_3", FriendlyName = "Shade Label 4")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_3 { get; private set; }
+	public string ShadeLabel_3
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_3", FriendlyName = "Visible 4")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_3 { get; private set; }
+	public bool Visible_3
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_3", FriendlyName = "Visible Slider 4")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_3 { get; private set; }
+	public bool VisibleSlider_3
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_3", FriendlyName = "Visible My 4")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_3 { get; private set; }
+	public bool VisibleMy_3
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_4", FriendlyName = "Open % 5", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_4 { get; private set; }
+	public int OpenPercent_4
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_4", FriendlyName = "Shade Label 5")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_4 { get; private set; }
+	public string ShadeLabel_4
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_4", FriendlyName = "Visible 5")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_4 { get; private set; }
+	public bool Visible_4
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_4", FriendlyName = "Visible Slider 5")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_4 { get; private set; }
+	public bool VisibleSlider_4
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_4", FriendlyName = "Visible My 5")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_4 { get; private set; }
+	public bool VisibleMy_4
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_5", FriendlyName = "Open % 6", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_5 { get; private set; }
+	public int OpenPercent_5
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_5", FriendlyName = "Shade Label 6")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_5 { get; private set; }
+	public string ShadeLabel_5
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_5", FriendlyName = "Visible 6")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_5 { get; private set; }
+	public bool Visible_5
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_5", FriendlyName = "Visible Slider 6")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_5 { get; private set; }
+	public bool VisibleSlider_5
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_5", FriendlyName = "Visible My 6")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_5 { get; private set; }
+	public bool VisibleMy_5
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_6", FriendlyName = "Open % 7", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_6 { get; private set; }
+	public int OpenPercent_6
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_6", FriendlyName = "Shade Label 7")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_6 { get; private set; }
+	public string ShadeLabel_6
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_6", FriendlyName = "Visible 7")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_6 { get; private set; }
+	public bool Visible_6
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_6", FriendlyName = "Visible Slider 7")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_6 { get; private set; }
+	public bool VisibleSlider_6
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_6", FriendlyName = "Visible My 7")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_6 { get; private set; }
+	public bool VisibleMy_6
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_7", FriendlyName = "Open % 8", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_7 { get; private set; }
+	public int OpenPercent_7
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_7", FriendlyName = "Shade Label 8")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_7 { get; private set; }
+	public string ShadeLabel_7
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_7", FriendlyName = "Visible 8")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_7 { get; private set; }
+	public bool Visible_7
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_7", FriendlyName = "Visible Slider 8")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_7 { get; private set; }
+	public bool VisibleSlider_7
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_7", FriendlyName = "Visible My 8")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_7 { get; private set; }
+	public bool VisibleMy_7
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_8", FriendlyName = "Open % 9", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_8 { get; private set; }
+	public int OpenPercent_8
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_8", FriendlyName = "Shade Label 9")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_8 { get; private set; }
+	public string ShadeLabel_8
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_8", FriendlyName = "Visible 9")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_8 { get; private set; }
+	public bool Visible_8
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_8", FriendlyName = "Visible Slider 9")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_8 { get; private set; }
+	public bool VisibleSlider_8
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_8", FriendlyName = "Visible My 9")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_8 { get; private set; }
+	public bool VisibleMy_8
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "openPercent_9", FriendlyName = "Open % 10", RangeMinimum = 0, RangeMaximum = 100, RangeStepSize = 1)]
 	[EntityPropertyMetadata (Programmable = true, ExtensionUiProperty = true)]
-	public int OpenPercent_9 { get; private set; }
+	public int OpenPercent_9
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "shadeLabel_9", FriendlyName = "Shade Label 10")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public string ShadeLabel_9 { get; private set; }
+	public string ShadeLabel_9
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_9", FriendlyName = "Visible 10")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool Visible_9 { get; private set; }
+	public bool Visible_9
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_slider_9", FriendlyName = "Visible Slider 10")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleSlider_9 { get; private set; }
+	public bool VisibleSlider_9
+		{
+		get; private set;
+		}
 
 	[EntityProperty (Id = "visible_my_9", FriendlyName = "Visible My 10")]
 	[EntityPropertyMetadata (ExtensionUiProperty = true)]
-	public bool VisibleMy_9 { get; private set; }
+	public bool VisibleMy_9
+		{
+		get; private set;
+		}
 
 	// ── Extension UI commands (room-level) ────────────────────────────────
 
@@ -916,16 +1066,36 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		{
 		switch (index)
 			{
-			case 0: UpdateIntProperty (() => OpenPercent_0, v => OpenPercent_0 = v, value, "openPercent_0", notify); break;
-			case 1: UpdateIntProperty (() => OpenPercent_1, v => OpenPercent_1 = v, value, "openPercent_1", notify); break;
-			case 2: UpdateIntProperty (() => OpenPercent_2, v => OpenPercent_2 = v, value, "openPercent_2", notify); break;
-			case 3: UpdateIntProperty (() => OpenPercent_3, v => OpenPercent_3 = v, value, "openPercent_3", notify); break;
-			case 4: UpdateIntProperty (() => OpenPercent_4, v => OpenPercent_4 = v, value, "openPercent_4", notify); break;
-			case 5: UpdateIntProperty (() => OpenPercent_5, v => OpenPercent_5 = v, value, "openPercent_5", notify); break;
-			case 6: UpdateIntProperty (() => OpenPercent_6, v => OpenPercent_6 = v, value, "openPercent_6", notify); break;
-			case 7: UpdateIntProperty (() => OpenPercent_7, v => OpenPercent_7 = v, value, "openPercent_7", notify); break;
-			case 8: UpdateIntProperty (() => OpenPercent_8, v => OpenPercent_8 = v, value, "openPercent_8", notify); break;
-			case 9: UpdateIntProperty (() => OpenPercent_9, v => OpenPercent_9 = v, value, "openPercent_9", notify); break;
+			case 0:
+				UpdateIntProperty (() => OpenPercent_0, v => OpenPercent_0 = v, value, "openPercent_0", notify);
+				break;
+			case 1:
+				UpdateIntProperty (() => OpenPercent_1, v => OpenPercent_1 = v, value, "openPercent_1", notify);
+				break;
+			case 2:
+				UpdateIntProperty (() => OpenPercent_2, v => OpenPercent_2 = v, value, "openPercent_2", notify);
+				break;
+			case 3:
+				UpdateIntProperty (() => OpenPercent_3, v => OpenPercent_3 = v, value, "openPercent_3", notify);
+				break;
+			case 4:
+				UpdateIntProperty (() => OpenPercent_4, v => OpenPercent_4 = v, value, "openPercent_4", notify);
+				break;
+			case 5:
+				UpdateIntProperty (() => OpenPercent_5, v => OpenPercent_5 = v, value, "openPercent_5", notify);
+				break;
+			case 6:
+				UpdateIntProperty (() => OpenPercent_6, v => OpenPercent_6 = v, value, "openPercent_6", notify);
+				break;
+			case 7:
+				UpdateIntProperty (() => OpenPercent_7, v => OpenPercent_7 = v, value, "openPercent_7", notify);
+				break;
+			case 8:
+				UpdateIntProperty (() => OpenPercent_8, v => OpenPercent_8 = v, value, "openPercent_8", notify);
+				break;
+			case 9:
+				UpdateIntProperty (() => OpenPercent_9, v => OpenPercent_9 = v, value, "openPercent_9", notify);
+				break;
 			}
 		}
 
@@ -934,16 +1104,36 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		var label = value ?? string.Empty;
 		switch (index)
 			{
-			case 0: UpdateStringProperty (() => ShadeLabel_0, v => ShadeLabel_0 = v, label, "shadeLabel_0", notify); break;
-			case 1: UpdateStringProperty (() => ShadeLabel_1, v => ShadeLabel_1 = v, label, "shadeLabel_1", notify); break;
-			case 2: UpdateStringProperty (() => ShadeLabel_2, v => ShadeLabel_2 = v, label, "shadeLabel_2", notify); break;
-			case 3: UpdateStringProperty (() => ShadeLabel_3, v => ShadeLabel_3 = v, label, "shadeLabel_3", notify); break;
-			case 4: UpdateStringProperty (() => ShadeLabel_4, v => ShadeLabel_4 = v, label, "shadeLabel_4", notify); break;
-			case 5: UpdateStringProperty (() => ShadeLabel_5, v => ShadeLabel_5 = v, label, "shadeLabel_5", notify); break;
-			case 6: UpdateStringProperty (() => ShadeLabel_6, v => ShadeLabel_6 = v, label, "shadeLabel_6", notify); break;
-			case 7: UpdateStringProperty (() => ShadeLabel_7, v => ShadeLabel_7 = v, label, "shadeLabel_7", notify); break;
-			case 8: UpdateStringProperty (() => ShadeLabel_8, v => ShadeLabel_8 = v, label, "shadeLabel_8", notify); break;
-			case 9: UpdateStringProperty (() => ShadeLabel_9, v => ShadeLabel_9 = v, label, "shadeLabel_9", notify); break;
+			case 0:
+				UpdateStringProperty (() => ShadeLabel_0, v => ShadeLabel_0 = v, label, "shadeLabel_0", notify);
+				break;
+			case 1:
+				UpdateStringProperty (() => ShadeLabel_1, v => ShadeLabel_1 = v, label, "shadeLabel_1", notify);
+				break;
+			case 2:
+				UpdateStringProperty (() => ShadeLabel_2, v => ShadeLabel_2 = v, label, "shadeLabel_2", notify);
+				break;
+			case 3:
+				UpdateStringProperty (() => ShadeLabel_3, v => ShadeLabel_3 = v, label, "shadeLabel_3", notify);
+				break;
+			case 4:
+				UpdateStringProperty (() => ShadeLabel_4, v => ShadeLabel_4 = v, label, "shadeLabel_4", notify);
+				break;
+			case 5:
+				UpdateStringProperty (() => ShadeLabel_5, v => ShadeLabel_5 = v, label, "shadeLabel_5", notify);
+				break;
+			case 6:
+				UpdateStringProperty (() => ShadeLabel_6, v => ShadeLabel_6 = v, label, "shadeLabel_6", notify);
+				break;
+			case 7:
+				UpdateStringProperty (() => ShadeLabel_7, v => ShadeLabel_7 = v, label, "shadeLabel_7", notify);
+				break;
+			case 8:
+				UpdateStringProperty (() => ShadeLabel_8, v => ShadeLabel_8 = v, label, "shadeLabel_8", notify);
+				break;
+			case 9:
+				UpdateStringProperty (() => ShadeLabel_9, v => ShadeLabel_9 = v, label, "shadeLabel_9", notify);
+				break;
 			}
 		}
 
@@ -951,16 +1141,36 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		{
 		switch (index)
 			{
-			case 0: UpdateBoolProperty (() => Visible_0, v => Visible_0 = v, value, "visible_0", notify); break;
-			case 1: UpdateBoolProperty (() => Visible_1, v => Visible_1 = v, value, "visible_1", notify); break;
-			case 2: UpdateBoolProperty (() => Visible_2, v => Visible_2 = v, value, "visible_2", notify); break;
-			case 3: UpdateBoolProperty (() => Visible_3, v => Visible_3 = v, value, "visible_3", notify); break;
-			case 4: UpdateBoolProperty (() => Visible_4, v => Visible_4 = v, value, "visible_4", notify); break;
-			case 5: UpdateBoolProperty (() => Visible_5, v => Visible_5 = v, value, "visible_5", notify); break;
-			case 6: UpdateBoolProperty (() => Visible_6, v => Visible_6 = v, value, "visible_6", notify); break;
-			case 7: UpdateBoolProperty (() => Visible_7, v => Visible_7 = v, value, "visible_7", notify); break;
-			case 8: UpdateBoolProperty (() => Visible_8, v => Visible_8 = v, value, "visible_8", notify); break;
-			case 9: UpdateBoolProperty (() => Visible_9, v => Visible_9 = v, value, "visible_9", notify); break;
+			case 0:
+				UpdateBoolProperty (() => Visible_0, v => Visible_0 = v, value, "visible_0", notify);
+				break;
+			case 1:
+				UpdateBoolProperty (() => Visible_1, v => Visible_1 = v, value, "visible_1", notify);
+				break;
+			case 2:
+				UpdateBoolProperty (() => Visible_2, v => Visible_2 = v, value, "visible_2", notify);
+				break;
+			case 3:
+				UpdateBoolProperty (() => Visible_3, v => Visible_3 = v, value, "visible_3", notify);
+				break;
+			case 4:
+				UpdateBoolProperty (() => Visible_4, v => Visible_4 = v, value, "visible_4", notify);
+				break;
+			case 5:
+				UpdateBoolProperty (() => Visible_5, v => Visible_5 = v, value, "visible_5", notify);
+				break;
+			case 6:
+				UpdateBoolProperty (() => Visible_6, v => Visible_6 = v, value, "visible_6", notify);
+				break;
+			case 7:
+				UpdateBoolProperty (() => Visible_7, v => Visible_7 = v, value, "visible_7", notify);
+				break;
+			case 8:
+				UpdateBoolProperty (() => Visible_8, v => Visible_8 = v, value, "visible_8", notify);
+				break;
+			case 9:
+				UpdateBoolProperty (() => Visible_9, v => Visible_9 = v, value, "visible_9", notify);
+				break;
 			}
 		}
 
@@ -968,16 +1178,36 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		{
 		switch (index)
 			{
-			case 0: UpdateBoolProperty (() => VisibleSlider_0, v => VisibleSlider_0 = v, value, "visible_slider_0", notify); break;
-			case 1: UpdateBoolProperty (() => VisibleSlider_1, v => VisibleSlider_1 = v, value, "visible_slider_1", notify); break;
-			case 2: UpdateBoolProperty (() => VisibleSlider_2, v => VisibleSlider_2 = v, value, "visible_slider_2", notify); break;
-			case 3: UpdateBoolProperty (() => VisibleSlider_3, v => VisibleSlider_3 = v, value, "visible_slider_3", notify); break;
-			case 4: UpdateBoolProperty (() => VisibleSlider_4, v => VisibleSlider_4 = v, value, "visible_slider_4", notify); break;
-			case 5: UpdateBoolProperty (() => VisibleSlider_5, v => VisibleSlider_5 = v, value, "visible_slider_5", notify); break;
-			case 6: UpdateBoolProperty (() => VisibleSlider_6, v => VisibleSlider_6 = v, value, "visible_slider_6", notify); break;
-			case 7: UpdateBoolProperty (() => VisibleSlider_7, v => VisibleSlider_7 = v, value, "visible_slider_7", notify); break;
-			case 8: UpdateBoolProperty (() => VisibleSlider_8, v => VisibleSlider_8 = v, value, "visible_slider_8", notify); break;
-			case 9: UpdateBoolProperty (() => VisibleSlider_9, v => VisibleSlider_9 = v, value, "visible_slider_9", notify); break;
+			case 0:
+				UpdateBoolProperty (() => VisibleSlider_0, v => VisibleSlider_0 = v, value, "visible_slider_0", notify);
+				break;
+			case 1:
+				UpdateBoolProperty (() => VisibleSlider_1, v => VisibleSlider_1 = v, value, "visible_slider_1", notify);
+				break;
+			case 2:
+				UpdateBoolProperty (() => VisibleSlider_2, v => VisibleSlider_2 = v, value, "visible_slider_2", notify);
+				break;
+			case 3:
+				UpdateBoolProperty (() => VisibleSlider_3, v => VisibleSlider_3 = v, value, "visible_slider_3", notify);
+				break;
+			case 4:
+				UpdateBoolProperty (() => VisibleSlider_4, v => VisibleSlider_4 = v, value, "visible_slider_4", notify);
+				break;
+			case 5:
+				UpdateBoolProperty (() => VisibleSlider_5, v => VisibleSlider_5 = v, value, "visible_slider_5", notify);
+				break;
+			case 6:
+				UpdateBoolProperty (() => VisibleSlider_6, v => VisibleSlider_6 = v, value, "visible_slider_6", notify);
+				break;
+			case 7:
+				UpdateBoolProperty (() => VisibleSlider_7, v => VisibleSlider_7 = v, value, "visible_slider_7", notify);
+				break;
+			case 8:
+				UpdateBoolProperty (() => VisibleSlider_8, v => VisibleSlider_8 = v, value, "visible_slider_8", notify);
+				break;
+			case 9:
+				UpdateBoolProperty (() => VisibleSlider_9, v => VisibleSlider_9 = v, value, "visible_slider_9", notify);
+				break;
 			}
 		}
 
@@ -985,16 +1215,36 @@ internal class OverkizRoomEntity : ReflectedAttributeDriverEntity, IOverkizEntit
 		{
 		switch (index)
 			{
-			case 0: UpdateBoolProperty (() => VisibleMy_0, v => VisibleMy_0 = v, value, "visible_my_0", notify); break;
-			case 1: UpdateBoolProperty (() => VisibleMy_1, v => VisibleMy_1 = v, value, "visible_my_1", notify); break;
-			case 2: UpdateBoolProperty (() => VisibleMy_2, v => VisibleMy_2 = v, value, "visible_my_2", notify); break;
-			case 3: UpdateBoolProperty (() => VisibleMy_3, v => VisibleMy_3 = v, value, "visible_my_3", notify); break;
-			case 4: UpdateBoolProperty (() => VisibleMy_4, v => VisibleMy_4 = v, value, "visible_my_4", notify); break;
-			case 5: UpdateBoolProperty (() => VisibleMy_5, v => VisibleMy_5 = v, value, "visible_my_5", notify); break;
-			case 6: UpdateBoolProperty (() => VisibleMy_6, v => VisibleMy_6 = v, value, "visible_my_6", notify); break;
-			case 7: UpdateBoolProperty (() => VisibleMy_7, v => VisibleMy_7 = v, value, "visible_my_7", notify); break;
-			case 8: UpdateBoolProperty (() => VisibleMy_8, v => VisibleMy_8 = v, value, "visible_my_8", notify); break;
-			case 9: UpdateBoolProperty (() => VisibleMy_9, v => VisibleMy_9 = v, value, "visible_my_9", notify); break;
+			case 0:
+				UpdateBoolProperty (() => VisibleMy_0, v => VisibleMy_0 = v, value, "visible_my_0", notify);
+				break;
+			case 1:
+				UpdateBoolProperty (() => VisibleMy_1, v => VisibleMy_1 = v, value, "visible_my_1", notify);
+				break;
+			case 2:
+				UpdateBoolProperty (() => VisibleMy_2, v => VisibleMy_2 = v, value, "visible_my_2", notify);
+				break;
+			case 3:
+				UpdateBoolProperty (() => VisibleMy_3, v => VisibleMy_3 = v, value, "visible_my_3", notify);
+				break;
+			case 4:
+				UpdateBoolProperty (() => VisibleMy_4, v => VisibleMy_4 = v, value, "visible_my_4", notify);
+				break;
+			case 5:
+				UpdateBoolProperty (() => VisibleMy_5, v => VisibleMy_5 = v, value, "visible_my_5", notify);
+				break;
+			case 6:
+				UpdateBoolProperty (() => VisibleMy_6, v => VisibleMy_6 = v, value, "visible_my_6", notify);
+				break;
+			case 7:
+				UpdateBoolProperty (() => VisibleMy_7, v => VisibleMy_7 = v, value, "visible_my_7", notify);
+				break;
+			case 8:
+				UpdateBoolProperty (() => VisibleMy_8, v => VisibleMy_8 = v, value, "visible_my_8", notify);
+				break;
+			case 9:
+				UpdateBoolProperty (() => VisibleMy_9, v => VisibleMy_9 = v, value, "visible_my_9", notify);
+				break;
 			}
 		}
 

@@ -108,6 +108,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 	public void SetOnline (bool online)
 		{
+		if (online && Volatile.Read (ref _disposeState) != 0)
+			return;
 		_gatewayAvailable = online;
 		online = online && (IsOneWay || _deviceAvailable);
 		Log ("SetOnline(" + online + ") called; current online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
@@ -122,6 +124,8 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			changed = true;
 			}
 
+		if (online && Volatile.Read (ref _disposeState) != 0)
+			return;
 		if (ReadyIndicatorIsReady != online)
 			{
 			ReadyIndicatorIsReady = online;
@@ -237,7 +241,13 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	/// <inheritdoc/>
 	public void ApplyEventStates (IReadOnlyList<EventState> states)
 		{
-		if (IsOneWay || states == null || states.Count == 0)
+		lock (_pollingGate)
+			ApplyEventStatesCore (states);
+		}
+
+	private void ApplyEventStatesCore (IReadOnlyList<EventState> states)
+		{
+		if (Volatile.Read (ref _disposeState) != 0 || IsOneWay || states == null || states.Count == 0)
 			return;
 
 		var closure = OpenPercent == 0 ? 100 : 100 - OpenPercent; // preserve current if not in event
@@ -248,7 +258,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			{
 			if (string.Equals (s.Name, STATE_CLOSURE, StringComparison.OrdinalIgnoreCase) && s.Value != null)
 				{
-				if (int.TryParse (s.Value.ToString (), out var v))
+				if (int.TryParse (s.Value.ToString (), out var v) && v >= 0 && v <= 100)
 					{
 					closure = v;
 					got = true;
@@ -256,8 +266,17 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 				}
 			else if (string.Equals (s.Name, STATE_MOVING, StringComparison.OrdinalIgnoreCase) && s.Value != null)
 				{
-				isMoving = string.Equals (s.Value.ToString (), "moving", StringComparison.OrdinalIgnoreCase);
-				got = true;
+				string moving = s.Value.ToString ();
+				if (string.Equals (moving, "moving", StringComparison.OrdinalIgnoreCase))
+					{
+					isMoving = true;
+					got = true;
+					}
+				else if (string.Equals (moving, "stopped", StringComparison.OrdinalIgnoreCase))
+					{
+					isMoving = false;
+					got = true;
+					}
 				}
 			}
 
@@ -272,11 +291,19 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 	private Timer _pollTimer;
 	private OverkizWorkQueue _queue;
+	private readonly object _pollingGate = new ();
+	private int _pollGeneration;
+	private int _pollPending;
+	private bool _polling;
+	private int _disposeState;
+	private long _stateRevision;
 
 	private static int _startPollingCallCount = 0;
 
 	public void StartPolling (OverkizWorkQueue queue)
 		{
+		if (Volatile.Read (ref _disposeState) != 0)
+			return;
 		int callNumber = System.Threading.Interlocked.Increment (ref _startPollingCallCount);
 		try
 			{
@@ -285,9 +312,15 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 			Log (">>> StartPolling PRE-STATE online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
 			if (!IsOneWay)
 				{
-				_queue = queue;
 				StopPolling ();
-				_pollTimer = new Timer (PollCallback, null, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
+				lock (_pollingGate)
+					{
+					if (Volatile.Read (ref _disposeState) != 0)
+						return;
+					_queue = queue;
+					_polling = true;
+					_pollTimer = new Timer (PollCallback, null, POLL_INTERVAL_MS, POLL_INTERVAL_MS);
+					}
 				}
 
 			Log (">>> StartPolling: calling SetOnline(true)");
@@ -305,15 +338,49 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 	public void StopPolling ()
 		{
 		Log ("StopPolling called; pre-state online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady + " timerExists=" + (_pollTimer != null));
-		Timer t = Interlocked.Exchange (ref _pollTimer, null);
+		Timer t;
+		lock (_pollingGate)
+			{
+			_polling = false;
+			_pollGeneration++;
+			t = Interlocked.Exchange (ref _pollTimer, null);
+			SetOnline (false);
+			}
 		_ = (t?.Change (Timeout.Infinite, Timeout.Infinite));
 		t?.Dispose ();
-		SetOnline (false);
 		Log ("StopPolling complete; post-state online=" + OnlineIndicatorIsOnline + " ready=" + ReadyIndicatorIsReady);
 		}
 
-	private void PollCallback (object _) =>
-		_ = _queue?.EnqueueAsync (PollAsync);
+	public override void Dispose ()
+		{
+		if (Interlocked.Exchange (ref _disposeState, 1) != 0)
+			return;
+		StopPolling ();
+		base.Dispose ();
+		}
+
+	private void PollCallback (object _)
+		{
+		lock (_pollingGate)
+			{
+			if (!_polling || Interlocked.CompareExchange (ref _pollPending, 1, 0) != 0)
+				return;
+			_ = PollSafelyAsync (_pollGeneration);
+			}
+		}
+
+	private async Task PollSafelyAsync (int generation)
+		{
+		try
+			{
+			await _queue.EnqueueAsync (client => PollAsync (client, generation)).ConfigureAwait (false);
+			}
+		catch (Exception exception)
+			{
+			LogError ("Shade poll failed (" + exception.GetType ().Name + ").");
+			}
+		finally { Interlocked.Exchange (ref _pollPending, 0); }
+		}
 
 	// ── Extension UI properties ───────────────────────────────────────────
 
@@ -430,7 +497,7 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 		[EntityParameter (RangeMinimum = 0, RangeMaximum = 100)] int value)
 		{
 		DebugLog ("COMMAND setOpenPercent invoked value=" + value);
-		if (IsOneWay)
+		if (Volatile.Read (ref _disposeState) != 0 || IsOneWay)
 			return;
 
 		// Overkiz closure is the inverse of open: 0 = open, 100 = closed.
@@ -523,36 +590,62 @@ internal class OverkizShadeEntity : ReflectedAttributeDriverEntity, IOverkizEnti
 
 	internal void UpdateState (int closurePercent, bool isMoving)
 		{
-		if (IsOneWay)
+		if (Volatile.Read (ref _disposeState) != 0 || IsOneWay)
 			return;
 
-		// Convert Overkiz closure (0=open, 100=closed) to open percent.
-		OpenPercent = 100 - Math.Max (0, Math.Min (100, closurePercent));
-		IsMoving = isMoving;
+		lock (_pollingGate)
+			{
+			if (Volatile.Read (ref _disposeState) != 0)
+				return;
+			_stateRevision++;
+			// Convert Overkiz closure (0=open, 100=closed) to open percent.
+			OpenPercent = 100 - Math.Max (0, Math.Min (100, closurePercent));
+			IsMoving = isMoving;
+			}
 		}
 
 	// ── Private: poll ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-	private async Task PollAsync (OverkizClient client)
+	private async Task PollAsync (OverkizClient client, int generation)
 		{
+		long revision;
+		lock (_pollingGate)
+			{
+			if (!_polling || generation != _pollGeneration)
+				return;
+			revision = _stateRevision;
+			}
 		var deviceUrl = _deviceUrl;
 		IReadOnlyList<State> states = await client.GetDeviceStates (deviceUrl).ConfigureAwait (false);
+		lock (_pollingGate)
+			{
+			if (!_polling || generation != _pollGeneration)
+				return;
+			if (revision != _stateRevision)
+				return;
+			ApplyPolledStates (states);
+			}
+		}
 
-		var closure = 0;
-		var isMoving = false;
-
+	internal void ApplyPolledStates (IReadOnlyList<State> states)
+		{
+		if (Volatile.Read (ref _disposeState) != 0 || IsOneWay || states == null)
+			return;
 		foreach (State state in states)
 			{
-			if (state.Name == STATE_CLOSURE && state.Value != null)
-				_ = int.TryParse (state.Value.ToString (), out closure);
-
-			if (state.Name == STATE_MOVING && state.Value != null)
+			if (state == null || state.Value == null)
+				continue;
+			if (string.Equals (state.Name, STATE_CLOSURE, StringComparison.OrdinalIgnoreCase)
+				&& int.TryParse (state.Value.ToString (), out int closure) && closure >= 0 && closure <= 100)
+				OpenPercent = 100 - closure;
+			if (string.Equals (state.Name, STATE_MOVING, StringComparison.OrdinalIgnoreCase))
 				{
-				isMoving = string.Equals (state.Value.ToString (), "moving",
-					StringComparison.OrdinalIgnoreCase);
+				string moving = state.Value.ToString ();
+				if (string.Equals (moving, "moving", StringComparison.OrdinalIgnoreCase))
+					IsMoving = true;
+				else if (string.Equals (moving, "stopped", StringComparison.OrdinalIgnoreCase))
+					IsMoving = false;
 				}
 			}
-
-		UpdateState (closure, isMoving);
 		}
 	}

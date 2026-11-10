@@ -8,6 +8,12 @@ scheme described in [README.md](README.md#building-from-source).
 
 This changelog records shipped features, fixes, compatibility and runtime dependency changes. See [development and validation history](DEVELOPMENT-HISTORY.md) for tests, CI, build tooling and work not yet released.
 
+## [2.3.14](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.14) - 2026-11-10
+
+- Use OverkizClient 2.2.0.
+- Coalesce periodic shade polls and suppress results from stopped shades or polls superseded by newer state updates.
+- Preserve position and motion fields missing or invalid in a partial response; accept real endpoint values of 0 and 100. Ignore late disposal errors only for retired clients.
+
 ## [2.3.13](https://github.com/oznetmaster/OverkizCrestronDriver/releases/tag/v2.3.13) - 2026-10-30
 
 - Propagate confirmed gateway or API-path loss to dependent shade and room availability, including one-way RTS devices. Preserve separate two-way device availability and reject stale work after connection replacement or disposal.

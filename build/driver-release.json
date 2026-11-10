@@ -1,0 +1,15 @@
+{
+  "name": "OverkizCrestronDriver",
+  "version": "2.3.14",
+  "packages": [
+    {
+      "id": "CrestronHomeDriver.Overkiz.Shades",
+      "project": "OverKizCrestronDriver/OverKizCrestronDriver.csproj",
+      "manifest": "OverKizCrestronDriver/Shade_Overkiz_IP_V2.json",
+      "payload": "Shade_Overkiz_IP_V2.pkg",
+      "displayName": "OverkizCrestronDriver",
+      "vendor": "Overkiz",
+      "category": "Shades"
+    }
+  ]
+}

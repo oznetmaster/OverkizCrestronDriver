@@ -206,9 +206,15 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	// ── HttpClient (one instance, reused across reconnects) ───────────────
 
 	private HttpClient _clientHttp;
-	internal Func<HttpClient> HttpClientFactory { get; set; }
+	internal Func<HttpClient> HttpClientFactory
+		{
+		get; set;
+		}
 	private bool _disposed;
-	internal Func<OverkizClient> ClientFactory { get; set; }
+	internal Func<OverkizClient> ClientFactory
+		{
+		get; set;
+		}
 	internal Func<int, CancellationToken, Task> EventDelay { get; set; } = Task.Delay;
 
 	// ── Configuration controller (exposed to entry point) ─────────────────
@@ -611,7 +617,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	private void ReapplyGatewayConnectivity ()
 		{
 		lock (_clientLock)
-			if (_client != null) PublishGatewayConnectivity (_client, CancellationToken.None);
+			if (_client != null)
+				PublishGatewayConnectivity (_client, CancellationToken.None);
 		}
 
 	private void PrepareForReconnect ()
@@ -695,7 +702,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			lock (_connectLock)
 				{
 				token.ThrowIfCancellationRequested ();
-				if (_disposed) throw new OperationCanceledException ();
+				if (_disposed)
+					throw new OperationCanceledException ();
 				lock (_clientLock)
 					{
 					_client = newClient;
@@ -713,7 +721,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 			{
 			if (!published)
 				{
-				try { if (newClient != null) await newClient.DisposeAsync ().ConfigureAwait (false); }
+				try
+					{
+					if (newClient != null)
+						await newClient.DisposeAsync ().ConfigureAwait (false);
+					}
 				finally { newHttp?.Dispose (); }
 				}
 			}
@@ -1334,7 +1346,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 		IReadOnlyList<Device> devices = null;
 		await _workQueue.EnqueueAsync (client, async c => devices = await c.GetDevices ().ConfigureAwait (false)).ConfigureAwait (false);
-		if (devices == null) return;
+		if (devices == null)
+			return;
 		lock (_connectLock)
 			{
 			if (_disposed || ct.IsCancellationRequested)
@@ -1597,11 +1610,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				eventClient = _client;
 			_eventLoopTask = Task.Run (async () =>
 				{
-				await previousLoop.ConfigureAwait (false);
-				if (EnableEventConnectivity (eventSource))
-					{
-					await RunEventLoopAsync (eventClient, token).ConfigureAwait (false);
-					}
+					await previousLoop.ConfigureAwait (false);
+					if (EnableEventConnectivity (eventSource))
+						{
+						await RunEventLoopAsync (eventClient, token).ConfigureAwait (false);
+						}
 				});
 			}
 
@@ -1612,7 +1625,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		{
 		lock (_eventLock)
 			{
-			if (_disposed || !ReferenceEquals (source, _eventCts) || source.IsCancellationRequested) return false;
+			if (_disposed || !ReferenceEquals (source, _eventCts) || source.IsCancellationRequested)
+				return false;
 			_connectivityStopped = false;
 			return true;
 			}
@@ -1646,9 +1660,14 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		{
 		lock (_clientLock)
 			{
-			if (!CurrentEventClient (client, token)) return false;
+			if (!CurrentEventClient (client, token))
+				return false;
 			var wasReachable = _apiReachable;
-			if (failure == null) { _transportFailures = 0; _apiReachable = true; }
+			if (failure == null)
+				{
+				_transportFailures = 0;
+				_apiReachable = true;
+				}
 			else
 				{
 				// HTTP/application errors (including auth/quota) are not evidence of a
@@ -1657,13 +1676,20 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 				if (failure is HttpRequestException)
 					for (var inner = failure.InnerException; inner != null; inner = inner.InnerException)
 						{
-						if (inner is System.Security.Authentication.AuthenticationException) { network = false; break; }
-						if (inner is System.Net.Sockets.SocketException || inner is System.IO.IOException) network = true;
+						if (inner is System.Security.Authentication.AuthenticationException)
+							{
+							network = false;
+							break;
+							}
+						if (inner is System.Net.Sockets.SocketException || inner is System.IO.IOException)
+							network = true;
 						}
 				_transportFailures = network ? _transportFailures + 1 : 0;
-				if (_transportFailures >= 2) _apiReachable = false;
+				if (_transportFailures >= 2)
+					_apiReachable = false;
 				}
-			if (wasReachable != _apiReachable) PublishGatewayConnectivity (client, token);
+			if (wasReachable != _apiReachable)
+				PublishGatewayConnectivity (client, token);
 			return !wasReachable && _apiReachable;
 			}
 		}
@@ -1671,28 +1697,47 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 	internal async Task RefreshGatewayAvailabilityAsync (OverkizClient client, IReadOnlyCollection<string> gatewayIds, CancellationToken token)
 		{
 		lock (_clientLock)
-			if (!CurrentEventClient (client, token) || client.ApiType == APIType.Local) return;
-		var gateways = await client.GetGateways ().ConfigureAwait (false);
+			if (!CurrentEventClient (client, token) || client.ApiType == APIType.Local)
+				return;
+		IReadOnlyList<Gateway> gateways;
+		try
+			{
+			gateways = await client.GetGateways ().ConfigureAwait (false);
+			}
+		catch (ObjectDisposedException)
+			{
+			lock (_clientLock)
+				if (CurrentEventClient (client, token))
+					throw;
+			return;
+			}
 		lock (_clientLock)
 			{
-			if (!CurrentEventClient (client, token)) return;
+			if (!CurrentEventClient (client, token))
+				return;
 			var changed = false;
 			foreach (var group in gateways.Where (g => !string.IsNullOrEmpty (g.GatewayId)).GroupBy (g => g.GatewayId, StringComparer.Ordinal))
 				{
 				// Missing/null/ambiguous states preserve prior knowledge; no synthetic true.
-				if (group.Count () != 1 || (gatewayIds != null && !gatewayIds.Contains (group.Key))) continue;
+				if (group.Count () != 1 || (gatewayIds != null && !gatewayIds.Contains (group.Key)))
+					continue;
 				var alive = group.Single ().Alive;
 				if (alive.HasValue && (!_gatewayAvailability.TryGetValue (group.Key, out var old) || old != alive.Value))
-					{ _gatewayAvailability[group.Key] = alive.Value; changed = true; }
+					{
+					_gatewayAvailability[group.Key] = alive.Value;
+					changed = true;
+					}
 				}
-			if (changed) PublishGatewayConnectivity (client, token);
+			if (changed)
+				PublishGatewayConnectivity (client, token);
 			}
 		}
 
 	private bool GatewayAvailableFor (OverkizClient client, string deviceUrl)
 		{
 		// The immutable client mode, not mutable installer settings, owns this result.
-		if (client.ApiType == APIType.Local) return true;
+		if (client.ApiType == APIType.Local)
+			return true;
 		var gatewayId = new Device { DeviceUrl = deviceUrl }.GatewayId;
 		return gatewayId == null || !_gatewayAvailability.TryGetValue (gatewayId, out var alive) || alive;
 		}
@@ -1703,9 +1748,11 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 		lock (_entitiesLock)
 			{
 			// Stop/cancel can occur while this publisher waits for the entity lock.
-			if (!CurrentEventClient (expectedClient, token)) return;
+			if (!CurrentEventClient (expectedClient, token))
+				return;
 			SetOnline (_apiReachable && _entities.Keys.All (url => GatewayAvailableFor (expectedClient, url)));
-			foreach (var pair in _entities) pair.Value.SetOnline (_apiReachable && GatewayAvailableFor (expectedClient, pair.Key));
+			foreach (var pair in _entities)
+				pair.Value.SetOnline (_apiReachable && GatewayAvailableFor (expectedClient, pair.Key));
 			foreach (var pair in _roomEntities)
 				{
 				var members = _roomToShades.TryGetValue (pair.Key, out var urls) ? urls : new List<string> ();
@@ -1741,9 +1788,13 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 					IReadOnlyList<OverKizApi.Models.EventObject> events =
 						await eventClient.FetchEvents (autoRegister: true).ConfigureAwait (false);
 
-					if (RecordEventTransport (eventClient, null, ct)) initialGatewaySnapshot = true;
+					if (RecordEventTransport (eventClient, null, ct))
+						initialGatewaySnapshot = true;
 					if (!string.Equals (observedListener, eventClient.EventListenerId, StringComparison.Ordinal))
-						{ initialGatewaySnapshot = true; observedListener = eventClient.EventListenerId; }
+						{
+						initialGatewaySnapshot = true;
+						observedListener = eventClient.EventListenerId;
+						}
 
 					foreach (OverKizApi.Models.EventObject ev in events)
 						{
@@ -1752,7 +1803,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 						lock (_clientLock)
 							{
-							if (!CurrentEventClient (eventClient, ct)) return;
+							if (!CurrentEventClient (eventClient, ct))
+								return;
 							if (eventClient.ApiType != APIType.Local && (ev.Name == "GatewayAliveChanged" || ev.Name == "GatewayAliveChangedEvent") && !string.IsNullOrEmpty (ev.GatewayId))
 								pendingGateways.Add (ev.GatewayId);
 							DispatchEvent (ev);
@@ -1938,7 +1990,8 @@ public class OverkizPlatformDriver : ReflectedAttributeDriverEntity
 
 			IReadOnlyList<OverKizApi.Models.Device> devices = null;
 			await _workQueue.EnqueueAsync (client, async c => devices = await c.GetDevices ().ConfigureAwait (false)).ConfigureAwait (false);
-			if (devices == null) return;
+			if (devices == null)
+				return;
 			OverKizApi.Models.Device device = devices.FirstOrDefault (d =>
 				string.Equals (d.DeviceUrl, ev.DeviceUrl, StringComparison.OrdinalIgnoreCase));
 
